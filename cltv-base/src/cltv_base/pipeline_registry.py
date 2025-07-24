@@ -1,16 +1,26 @@
-"""Project pipelines."""
-from __future__ import annotations
+# src/customer_analytics/pipeline_registry.py
 
-from kedro.framework.project import find_pipelines
+"""Project pipelines."""
+from typing import Dict
+
 from kedro.pipeline import Pipeline
 
+# Import your preprocessing pipeline
+from cltv_base.pipeline import create_pipeline as create_preprocessing_pipeline
 
-def register_pipelines() -> dict[str, Pipeline]:
+
+def register_pipelines() -> Dict[str, Pipeline]:
     """Register the project's pipelines.
 
     Returns:
         A mapping from pipeline names to ``Pipeline`` objects.
     """
-    pipelines = find_pipelines()
-    pipelines["__default__"] = sum(pipelines.values())
-    return pipelines
+    # Create an instance of your preprocessing pipeline
+    preprocessing_pipeline = create_preprocessing_pipeline()
+
+    # Register the pipeline with a name
+    return {
+        "preprocessing_pipeline": preprocessing_pipeline,
+        "__default__": preprocessing_pipeline, # Optionally set it as the default pipeline
+    }
+

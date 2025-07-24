@@ -1,4 +1,31 @@
-# Here you can define all your datasets by using simple YAML syntax.
-#
-# Documentation for this file format can be found in "The Data Catalog"
-# Link: https://docs.kedro.org/en/stable/data/data_catalog.html
+# conf/base/catalog.yml
+
+# Raw data - these are the fixed paths where Streamlit will place the input data
+orders_raw:
+  type: pandas.CSVDataset
+  filepath: data/00_external/current_orders_data.csv
+
+transactions_raw:
+  type: pandas.CSVDataset
+  filepath: data/00_external/current_transactions_data.csv
+
+# Intermediate datasets (outputs of your preprocessing nodes)
+orders_standardized:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/orders_standardized.parquet
+
+transactions_standardized:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/transactions_standardized.parquet
+
+orders_typed:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/orders_typed.parquet
+
+transactions_typed:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/transactions_typed.parquet
+
+orders_merged_with_user_id:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/orders_merged_with_user_id.parquet
