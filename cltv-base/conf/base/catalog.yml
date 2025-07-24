@@ -29,3 +29,124 @@ transactions_typed:
 orders_merged_with_user_id:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/orders_merged_with_user_id.parquet
+
+# Datasets for core operations
+customer_level_features:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_level_features.parquet
+
+rfm_segmented_df:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/rfm_segmented_df.parquet
+
+rfm_segmented_with_historical_cltv:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/rfm_segmented_with_historical_cltv.parquet
+
+customers_at_risk_df:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/customers_at_risk_df.parquet # Moved to primary as it's a direct insight
+
+rfm_segmented_labeled_churn:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/rfm_segmented_labeled_churn.parquet
+
+churn_features_X:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/churn_features_X.parquet
+
+churn_labels_y:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/churn_labels_y.parquet
+
+rfm_segmented_survival_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/rfm_segmented_survival_data.parquet
+
+# Model outputs
+predicted_cltv_df:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/predicted_cltv_df.parquet
+
+churn_model:
+  type: pickle.PickleDataset # For saving the trained model object
+  filepath: data/03_primary/churn_model.pkl
+
+churn_report:
+  type: json.JSONDataset # For saving the classification report
+  filepath: data/03_primary/churn_classification_report.json
+
+churn_feature_importances:
+  type: json.JSONDataset
+  filepath: data/03_primary/churn_feature_importances.json
+
+churn_X_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/churn_X_test.parquet
+
+churn_y_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/churn_y_test.parquet
+
+cox_model:
+  type: pickle.PickleDataset
+  filepath: data/03_primary/cox_model.pkl
+
+rfm_segmented_with_cox_predictions:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/rfm_segmented_with_cox_predictions.parquet
+
+predicted_churn_probabilities:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/predicted_churn_probabilities.parquet
+
+predicted_churn_labels:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/predicted_churn_labels.parquet
+
+# UI-specific data (pre-calculated for display)
+kpi_data_for_ui:
+  type: json.JSONDataset # Use JSON for dictionary
+  filepath: data/04_feature/kpi_data_for_ui.json
+
+segment_summary_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/segment_summary_data_for_ui.parquet
+
+segment_counts_data_for_ui: # NEW DATASET FOR PIE CHART
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/segment_counts_data_for_ui.parquet
+
+top_products_by_segment_data_for_ui:
+  type: pickle.PickleDataset # Use Pickle for Dict[str, DataFrame]
+  filepath: data/04_feature/top_products_by_segment_data_for_ui.pkl
+
+predicted_cltv_display_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/predicted_cltv_display_data_for_ui.parquet
+
+cltv_comparison_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/cltv_comparison_data_for_ui.parquet
+
+realization_curve_data_for_ui:
+  type: pickle.PickleDataset # Use Pickle for Dict[str, DataFrame]
+  filepath: data/04_feature/realization_curve_data_for_ui.pkl
+
+churn_summary_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/churn_summary_data_for_ui.parquet
+
+active_days_summary_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/active_days_summary_data_for_ui.parquet
+
+churn_detailed_view_data_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/churn_detailed_view_data_for_ui.parquet
+
+# Final combined data for the UI (if a single large DF is preferred)
+# This will be constructed by combining relevant outputs for the UI
+final_rfm_cltv_churn_data:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/final_rfm_cltv_churn_data.parquet
