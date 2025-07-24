@@ -1,5 +1,6 @@
 # src/cltv_base/pipeline.py
 
+import pandas as pd
 from kedro.pipeline import Pipeline, node, pipeline
 from .nodes import (
     standardize_columns,
@@ -20,7 +21,7 @@ from .nodes import (
     # New UI data preparation nodes
     prepare_kpi_data,
     prepare_segment_summary_data,
-    prepare_segment_counts_data, # NEW NODE IMPORT
+    prepare_segment_counts_data,
     prepare_top_products_by_segment_data,
     prepare_predicted_cltv_display_data,
     prepare_cltv_comparison_data,
@@ -28,6 +29,91 @@ from .nodes import (
     prepare_churn_summary_data,
     prepare_churn_detailed_view_data
 )
+
+# New named function to encapsulate the final data assembly logic
+def _assemble_final_customer_data(rfm: pd.DataFrame, cltv_pred_df: pd.DataFrame, 
+                                  churn_prob_df: pd.DataFrame, churn_labels_df: pd.DataFrame, 
+                                  cox_pred_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Assembles the final customer-level DataFrame for UI display by merging various predictions.
+    Includes diagnostic prints to check data integrity after merges.
+    """
+    # Aggressive cleaning and type conversion for 'User ID' in all relevant DataFrames
+    # and deep dive diagnostics for churn dataframes
+    for df_name, df in [
+        ("rfm_segmented_with_historical_cltv", rfm),
+        ("predicted_cltv_df", cltv_pred_df),
+        ("predicted_churn_probabilities", churn_prob_df),
+        ("predicted_churn_labels", churn_labels_df),
+        ("rfm_segmented_with_cox_predictions", cox_pred_df)
+    ]:
+        if 'User ID' in df.columns:
+            # Convert to string, strip whitespace, and then ensure unique IDs are handled
+            df['User ID'] = df['User ID'].astype(str).str.strip()
+            # If there are duplicate User IDs after stripping, we need to handle them.
+            # In a real scenario, you might need a more sophisticated deduplication strategy.
+            # For now, drop duplicates to ensure unique merge keys.
+            df.drop_duplicates(subset=['User ID'], inplace=True)
+        else:
+            print(f"Warning: 'User ID' column not found in {df_name} during pre-merge cleaning.")
+
+    print("\n--- Diagnostic: User ID counts and samples AFTER cleaning and BEFORE final merges ---")
+    print(f"rfm_segmented_with_historical_cltv User IDs: {rfm['User ID'].nunique()} unique. Sample: {rfm['User ID'].head().tolist()}")
+    print(f"predicted_cltv_df User IDs: {cltv_pred_df['User ID'].nunique()} unique. Sample: {cltv_pred_df['User ID'].head().tolist()}")
+    print(f"predicted_churn_probabilities User IDs: {churn_prob_df['User ID'].nunique()} unique. Sample: {churn_prob_df['User ID'].head().tolist()}")
+    print(f"predicted_churn_labels User IDs: {churn_labels_df['User ID'].nunique()} unique. Sample: {churn_labels_df['User ID'].head().tolist()}")
+    print(f"rfm_segmented_with_cox_predictions User IDs: {cox_pred_df['User ID'].nunique()} unique. Sample: {cox_pred_df['User ID'].head().tolist()}")
+    print("--- End User ID diagnostics ---")
+
+    # Check for User ID intersection before merging
+    base_users = set(rfm['User ID'].unique())
+    churn_prob_users = set(churn_prob_df['User ID'].unique())
+    churn_labels_users = set(churn_labels_df['User ID'].unique())
+
+    print(f"\n--- Diagnostic: User ID Intersection Check ---")
+    print(f"Users in base RFM but not in churn_prob_df: {len(base_users - churn_prob_users)}")
+    print(f"Users in churn_prob_df but not in base RFM: {len(churn_prob_users - base_users)}")
+    print(f"Users in base RFM but not in churn_labels_df: {len(base_users - churn_labels_users)}")
+    print(f"Users in churn_labels_df but not in base RFM: {len(churn_labels_users - base_users)}")
+    print("--- End Intersection Check ---")
+
+    # --- DEEP DIVE DIAGNOSTICS FOR CHURN DATA BEFORE MERGE ---
+    print("\n--- Deep Dive Diagnostic: predicted_churn_probabilities BEFORE MERGE ---")
+    print(churn_prob_df.info())
+    print("\nHead of predicted_churn_probabilities:")
+    print(churn_prob_df.head())
+    print("\nNull counts in predicted_churn_probabilities:")
+    print(churn_prob_df.isnull().sum())
+    print("\nColumns in predicted_churn_probabilities:", churn_prob_df.columns.tolist())
+
+    print("\n--- Deep Dive Diagnostic: predicted_churn_labels BEFORE MERGE ---")
+    print(churn_labels_df.info())
+    print("\nHead of predicted_churn_labels:")
+    print(churn_labels_df.head())
+    print("\nNull counts in predicted_churn_labels:")
+    print(churn_labels_df.isnull().sum())
+    print("\nColumns in predicted_churn_labels:", churn_labels_df.columns.tolist())
+    # --- END DEEP DIVE DIAGNOSTICS ---
+
+    # Start with the base RFM DataFrame and chain merges
+    final_df = rfm.merge(cltv_pred_df, on='User ID', how='left') \
+                  .merge(churn_prob_df, on='User ID', how='left') \
+                  .merge(churn_labels_df, on='User ID', how='left') \
+                  .merge(cox_pred_df[['User ID', 'expected_active_days']], on='User ID', how='left')
+    
+    # --- Diagnostic: final_rfm_cltv_churn_data after merges ---
+    print("\n--- Diagnostic: final_rfm_cltv_churn_data after merges ---")
+    print(final_df.info())
+    print("\nNull counts after merges:")
+    print(final_df.isnull().sum())
+    print("\nValue counts for predicted_churn after merges:")
+    print(final_df['predicted_churn'].value_counts(dropna=False)) # Check counts including NaN
+    print("\nDescribe for predicted_churn_prob after merges:")
+    print(final_df['predicted_churn_prob'].describe())
+    # --- End Diagnostic ---
+
+    return final_df
+
 
 def create_pipeline(**kwargs) -> Pipeline:
     """
@@ -171,7 +257,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="prepare_segment_summary_data",
             ),
             node(
-                func=prepare_segment_counts_data, # NEW NODE
+                func=prepare_segment_counts_data,
                 inputs="rfm_segmented_with_historical_cltv",
                 outputs="segment_counts_data_for_ui",
                 name="prepare_segment_counts_data",
@@ -190,7 +276,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=prepare_cltv_comparison_data,
-                inputs="predicted_cltv_display_data_for_ui", # This DF now contains predicted_cltv_3m
+                inputs="predicted_cltv_display_data_for_ui",
                 outputs="cltv_comparison_data_for_ui",
                 name="prepare_cltv_comparison_data",
             ),
@@ -202,24 +288,20 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=prepare_churn_summary_data,
-                inputs=["rfm_segmented_with_cox_predictions"], # This DF now contains predicted_churn_prob and expected_active_days
+                inputs=["final_rfm_cltv_churn_data"], # Use the final combined data for churn summary
                 outputs=["churn_summary_data_for_ui", "active_days_summary_data_for_ui"],
                 name="prepare_churn_summary_data",
             ),
             node(
                 func=prepare_churn_detailed_view_data,
-                inputs="rfm_segmented_with_cox_predictions", # This DF now contains all necessary churn columns
+                inputs="final_rfm_cltv_churn_data", # Use the final combined data for detailed view
                 outputs="churn_detailed_view_data_for_ui",
                 name="prepare_churn_detailed_view_data",
             ),
 
             # Final Data Assembly for UI (Combines all relevant customer-level data into a single DF)
             node(
-                func=lambda rfm, cltv_pred_df, churn_prob_df, churn_labels_df, cox_pred_df: rfm
-                    .merge(cltv_pred_df, on='User ID', how='left')
-                    .merge(churn_prob_df, left_index=True, right_index=True, how='left')
-                    .merge(churn_labels_df, left_index=True, right_index=True, how='left')
-                    .merge(cox_pred_df[['User ID', 'expected_active_days']], on='User ID', how='left'),
+                func=_assemble_final_customer_data, # Call the new named function
                 inputs=[
                     "rfm_segmented_with_historical_cltv",
                     "predicted_cltv_df",
@@ -236,7 +318,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             "final_rfm_cltv_churn_data",
             "kpi_data_for_ui",
             "segment_summary_data_for_ui",
-            "segment_counts_data_for_ui", # NEW OUTPUT
+            "segment_counts_data_for_ui",
             "top_products_by_segment_data_for_ui",
             "predicted_cltv_display_data_for_ui",
             "cltv_comparison_data_for_ui",

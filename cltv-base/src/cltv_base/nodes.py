@@ -48,7 +48,7 @@ def standardize_columns(df: pd.DataFrame, expected_mapping: dict, df_name: str) 
 # --- Data Type Conversion (from input.py) ---
 def convert_data_types(orders_df: pd.DataFrame, transactions_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
-    Converts date and numeric fields to proper formats.
+    Converts date and numeric fields to proper formats, and ensures 'User ID' is string.
     Args:
         orders_df: DataFrame containing order data.
         transactions_df: DataFrame containing transaction data.
@@ -77,6 +77,13 @@ def convert_data_types(orders_df: pd.DataFrame, transactions_df: pd.DataFrame) -
     # Convert numeric columns in transactions_df (assuming 'Total Amount' is the main one)
     if 'Total Amount' in transactions_df.columns:
         transactions_df['Total Amount'] = pd.to_numeric(transactions_df['Total Amount'], errors='coerce')
+
+    # Ensure 'User ID' is string type in transactions_df for consistent merging later
+    if 'User ID' in transactions_df.columns:
+        transactions_df['User ID'] = transactions_df['User ID'].astype(str)
+    else:
+        print("Warning: 'User ID' not found in transactions_df. Ensure it's handled upstream if needed for merges.")
+
 
     return orders_df, transactions_df
 
@@ -176,6 +183,9 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
         first_purchase=('Purchase Date', 'min')
     ).reset_index()
 
+    # Ensure 'User ID' is string type after reset_index
+    customer_level['User ID'] = customer_level['User ID'].astype(str)
+
     customer_level['aov'] = round(customer_level['monetary'] / customer_level['frequency'], 2)
     
     customer_level['avg_days_between_orders'] = (
@@ -257,9 +267,18 @@ def label_churned_customers(customer_df: pd.DataFrame, inactive_days_threshold: 
     print(f"Labeling churned customers (recency > {inactive_days_threshold} days)...")
     df = customer_df.copy()
     df['is_churned'] = (df['recency'] > inactive_days_threshold).astype(int)
+    
+    # --- Diagnostic Print ---
+    churned_count = df['is_churned'].sum()
+    total_customers = len(df)
+    print(f"Diagnostic: Labeled {churned_count} out of {total_customers} customers as churned.")
+    if churned_count == 0:
+        print("WARNING: No customers were labeled as churned. Consider adjusting 'churn_inactive_days_threshold'.")
+    # --- End Diagnostic Print ---
+
     return df
 
-def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]: # Changed return type to pd.DataFrame for y
+def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Extracts features and labels for churn prediction.
     This function acts as a Kedro node.
@@ -277,7 +296,12 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
     
     X = customer_df[existing_feature_cols]
     y = customer_df['is_churned']
-    return X, y.to_frame() # Convert y Series to DataFrame here
+    
+    # --- Diagnostic Print ---
+    print(f"Diagnostic: get_churn_features_labels - y (is_churned) value counts:\n{y.value_counts()}")
+    # --- End Diagnostic Print ---
+
+    return X, y.to_frame()
 
 def prepare_survival_data(customer_df: pd.DataFrame, churn_threshold: int) -> pd.DataFrame:
     """
@@ -337,38 +361,72 @@ def predict_cltv_bgf_ggf(transactions_df: pd.DataFrame) -> pd.DataFrame:
     )
 
     summary_df = summary_df.reset_index()
+    # Ensure 'User ID' is string type after reset_index
+    summary_df['User ID'] = summary_df['User ID'].astype(str)
+    
+    # --- Diagnostic Print ---
+    print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df head:\n{summary_df.head()}")
+    print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df null counts:\n{summary_df.isnull().sum()}")
+    # --- End Diagnostic Print ---
+
     return summary_df[['User ID', 'predicted_cltv_3m']]
 
-def train_churn_prediction_model(X: pd.DataFrame, y: pd.DataFrame, n_estimators: int, random_state: int) -> Tuple[RandomForestClassifier, Dict, List, pd.DataFrame, pd.DataFrame]: # Changed y to pd.DataFrame
+def train_churn_prediction_model(X: pd.DataFrame, y: pd.DataFrame, n_estimators: int, random_state: int) -> Tuple[RandomForestClassifier, Dict, List, pd.DataFrame, pd.DataFrame]:
     """
     Trains a RandomForestClassifier for churn prediction.
     This function acts as a Kedro node.
     """
     print("Training churn prediction model...")
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=random_state)
+    
+    # --- Diagnostic Print ---
+    print(f"Diagnostic: train_churn_prediction_model - y_train (is_churned) value counts:\n{y_train.value_counts()}")
+    if y_train['is_churned'].sum() == 0:
+        print("WARNING: No churned customers in training data. Model will likely predict no churn.")
+    # --- End Diagnostic Print ---
+
     model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
-    model.fit(X_train, y_train.values.ravel()) # .values.ravel() to convert DataFrame to 1D array for fit
+    model.fit(X_train, y_train.values.ravel())
     report = classification_report(y_test, model.predict(X_test), output_dict=True)
     importances = model.feature_importances_.tolist()
     return model, report, importances, X_test, y_test
 
-def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) -> pd.DataFrame: # Changed return type to pd.DataFrame
+def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) -> pd.DataFrame:
     """
     Predicts churn probabilities using the trained model.
     This function acts as a Kedro node.
     """
     print("Predicting churn probabilities...")
-    # Return as DataFrame with 'User ID' as index for merging later
-    return pd.DataFrame(model.predict_proba(X)[:, 1], index=X.index, columns=['predicted_churn_prob'])
+    # Ensure the index of X is preserved, and reset to column for merging
+    prob_df = pd.DataFrame(model.predict_proba(X)[:, 1], index=X.index, columns=['predicted_churn_prob'])
+    prob_df = prob_df.reset_index().rename(columns={'index': 'User ID'})
+    prob_df['User ID'] = prob_df['User ID'].astype(str) # Ensure User ID is string
+    
+    # --- Diagnostic Print ---
+    print(f"Diagnostic: predict_churn_probabilities - predicted_churn_prob describe:\n{prob_df['predicted_churn_prob'].describe()}")
+    # --- End Diagnostic Print ---
 
-def assign_predicted_churn_labels(predicted_churn_prob: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame: # Changed input/output to pd.DataFrame
+    return prob_df
+
+def assign_predicted_churn_labels(predicted_churn_prob: pd.DataFrame, threshold: float = 0.5) -> pd.DataFrame:
     """
     Assigns binary churn labels based on a probability threshold.
     This function acts as a Kedro node.
     """
     print("Assigning predicted churn labels...")
-    # Ensure it's a DataFrame and rename the column
-    return (predicted_churn_prob['predicted_churn_prob'] >= threshold).astype(int).to_frame(name='predicted_churn')
+    # Ensure the index of predicted_churn_prob is preserved when creating the new DataFrame, and reset to column for merging
+    churn_labels_df = (predicted_churn_prob['predicted_churn_prob'] >= threshold).astype(int).to_frame(name='predicted_churn')
+    churn_labels_df = churn_labels_df.reset_index().rename(columns={'index': 'User ID'})
+    churn_labels_df['User ID'] = churn_labels_df['User ID'].astype(str) # Ensure User ID is string
+    
+    # --- Diagnostic Print ---
+    print(f"Diagnostic: assign_predicted_churn_labels - predicted_churn value counts:\n{churn_labels_df['predicted_churn'].value_counts()}")
+    if churn_labels_df['predicted_churn'].sum() == 0:
+        print("WARNING: No customers predicted as churned. Consider adjusting 'predicted_churn_probability_threshold'.")
+    # --- End Diagnostic Print ---
+
+    return churn_labels_df
+
 
 def train_cox_survival_model(customer_df: pd.DataFrame, feature_cols: List[str]) -> Tuple[CoxPHFitter, pd.DataFrame]:
     """
@@ -388,6 +446,8 @@ def train_cox_survival_model(customer_df: pd.DataFrame, feature_cols: List[str])
     survival_df = df[required_cols]
     cph.fit(survival_df, duration_col='duration', event_col='event')
 
+    # Ensure 'User ID' is string type before returning
+    df['User ID'] = df['User ID'].astype(str)
     df['expected_active_days'] = cph.predict_expectation(survival_df).round(0).astype(int)
     return cph, df
 
@@ -526,8 +586,8 @@ def prepare_predicted_cltv_display_data(rfm_segmented_df: pd.DataFrame, predicte
     """
     print("Preparing predicted CLTV display data...")
     if 'User ID' not in rfm_segmented_df.columns or 'User ID' not in predicted_cltv_df.columns:
-        print("Warning: Missing 'User ID' for merging CLTV prediction data.")
-        return rfm_segmented_df[['User ID', 'segment', 'CLTV']].copy() # Return basic if merge fails
+        print("Warning: Missing 'User ID' for merging CLTV prediction data. Returning base RFM data.")
+        return rfm_segmented_df[['User ID', 'segment', 'CLTV']].copy()
 
     # Merge predicted CLTV into the RFM segmented data
     rfm_segmented_df = rfm_segmented_df.merge(predicted_cltv_df, on='User ID', how='left')
@@ -535,7 +595,7 @@ def prepare_predicted_cltv_display_data(rfm_segmented_df: pd.DataFrame, predicte
     
     return rfm_segmented_df[['User ID', 'segment', 'CLTV', 'predicted_cltv_3m']].sort_values(by='predicted_cltv_3m', ascending=False).reset_index(drop=True)
 
-def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> pd.DataFrame: # Changed input to predicted_cltv_display_data
+def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> pd.DataFrame:
     """
     Prepares data for average historical vs predicted CLTV per segment bar chart.
     """
@@ -580,7 +640,7 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     df['revenue'] = df['quantity'] * df['unitprice']
 
     segment_options = {
-        "Overall": rfm_segmented_df['User ID'].unique(), # Use rfm_segmented_df for User IDs
+        "Overall": rfm_segmented_df['User ID'].unique(),
         "High CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'High']['User ID'].unique(),
         "Mid CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'Medium']['User ID'].unique(),
         "Low CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'Low']['User ID'].unique()
@@ -600,9 +660,8 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
             realization_data[option_name] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
             continue
 
-        # Calculate start_date based on filtered_df, not overall df
         start_date = filtered_df['order_date'].min()
-        if pd.isna(start_date): # Handle case where filtered_df might be empty after date filter
+        if pd.isna(start_date):
             realization_data[option_name] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
             continue
 
@@ -625,8 +684,13 @@ def prepare_churn_summary_data(rfm_segmented_df: pd.DataFrame) -> Tuple[pd.DataF
     Prepares data for churn summary metrics and expected active days by segment.
     """
     print("Preparing churn summary data...")
-    if 'predicted_churn' not in rfm_segmented_df.columns or 'predicted_churn_prob' not in rfm_segmented_df.columns or 'expected_active_days' not in rfm_segmented_df.columns:
-        print("Warning: Missing churn prediction columns for churn summary.")
+    if not all(col in rfm_segmented_df.columns for col in ['predicted_churn', 'predicted_churn_prob', 'expected_active_days', 'segment']):
+        print("Warning: Missing churn prediction or segment columns for churn summary. Returning empty DataFrames.")
+        # --- Diagnostic Print ---
+        missing_cols = [col for col in ['predicted_churn', 'predicted_churn_prob', 'expected_active_days', 'segment'] if col not in rfm_segmented_df.columns]
+        print(f"Diagnostic: prepare_churn_summary_data - Missing columns: {missing_cols}")
+        print(f"Diagnostic: prepare_churn_summary_data - Columns available: {rfm_segmented_df.columns.tolist()}")
+        # --- End Diagnostic Print ---
         return pd.DataFrame(), pd.DataFrame()
 
     churn_by_segment = (
@@ -653,23 +717,25 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
     print("Preparing detailed churn view data...")
     required_cols = ['User ID', 'segment', 'predicted_cltv_3m', 'predicted_churn_prob', 'predicted_churn', 'expected_active_days']
     if not all(col in rfm_segmented_df.columns for col in required_cols):
-        print("Warning: Missing required columns for detailed churn view.")
-        # Return an empty DataFrame with expected columns to avoid downstream errors
+        print("Warning: Missing required columns for detailed churn view. Returning empty DataFrame.")
+        # --- Diagnostic Print ---
+        missing_cols = [col for col in required_cols if col not in rfm_segmented_df.columns]
+        print(f"Diagnostic: prepare_churn_detailed_view_data - Missing columns: {missing_cols}")
+        print(f"Diagnostic: prepare_churn_detailed_view_data - Columns available: {rfm_segmented_df.columns.tolist()}")
+        # --- End Diagnostic Print ---
         return pd.DataFrame(columns=required_cols)
 
     return rfm_segmented_df[required_cols].sort_values(by='predicted_churn_prob', ascending=False).copy()
 
 # Helper function to add ordinal suffix (from original streamlit_ui.py)
 def format_date_with_ordinal(date):
-    if pd.isna(date): # Handle NaT or None
+    if pd.isna(date):
         return "N/A"
     day = int(date.strftime('%d'))
     suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
     return f"{day}{suffix} {date.strftime('%B %Y')}"
 
 # Helper function to check for duplicate columns (from original streamlit_ui.py)
-# This function is not directly used in the Kedro pipeline nodes, but kept here for completeness
-# if a similar check were needed in a node.
 def has_duplicate_columns(df1, df2):
     return df1.columns.duplicated().any() or df2.columns.duplicated().any()
 

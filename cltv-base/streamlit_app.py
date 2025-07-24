@@ -44,7 +44,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
     """
     Executes the main Kedro pipeline and loads all pre-calculated UI data.
     """
-    st.info("Initiating Kedro pipeline run...")
     try:
         with KedroSession.create(project_path=KEDRO_PROJECT_ROOT) as session:
             context = session.load_context() # Explicitly load context
@@ -57,7 +56,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['rfm_segmented'] = context.catalog.load("final_rfm_cltv_churn_data")
             ui_data['kpi_data'] = context.catalog.load("kpi_data_for_ui")
             ui_data['segment_summary'] = context.catalog.load("segment_summary_data_for_ui")
-            ui_data['segment_counts'] = context.catalog.load("segment_counts_data_for_ui") # NEW LOAD
+            ui_data['segment_counts'] = context.catalog.load("segment_counts_data_for_ui")
             ui_data['top_products_by_segment'] = context.catalog.load("top_products_by_segment_data_for_ui")
             ui_data['predicted_cltv_display'] = context.catalog.load("predicted_cltv_display_data_for_ui")
             ui_data['cltv_comparison'] = context.catalog.load("cltv_comparison_data_for_ui")
@@ -71,7 +70,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
 
 
-        st.success("✅ Kedro pipeline completed successfully and UI data loaded!")
         return ui_data
     except Exception as e:
         st.error(f"❌ Error running Kedro pipeline or loading UI data: {e}")
@@ -94,7 +92,7 @@ def kpi_card(title, value, color="black"):
         </div>
     """, unsafe_allow_html=True)
 
-def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame]): # NEW INPUT
+def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame]):
     st.subheader("📌 Key KPIs")
 
     # Use pre-calculated KPI data
@@ -431,6 +429,8 @@ def run_streamlit_app():
             st.success("Using sample data. Click 'Process Data' to continue.")
 
         if st.button("⚙️ Process Data (Run Kedro Pipeline)", key="process_data_button"):
+            # Clear the cache to force a re-run of the pipeline
+            st.cache_data.clear() 
             if 'data_source' not in st.session_state:
                 st.warning("Please upload files or select sample data first.")
                 return
@@ -452,6 +452,9 @@ def run_streamlit_app():
                         shutil.copy(SAMPLE_TRANS_PATH, FIXED_TRANSACTIONS_RAW_PATH)
                         st.info(f"Sample files copied to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}")
                     
+                    # Display pipeline initiation message
+                    st.info("Initiating Kedro pipeline run...")
+
                     st.session_state['preprocessing_triggered'] = True
                     st.rerun() # Using st.rerun()
                 except Exception as e:
@@ -463,12 +466,16 @@ def run_streamlit_app():
         st.session_state['ui_data'] = run_kedro_main_pipeline_and_load_ui_data()
         st.session_state['preprocessing_done'] = True
         st.session_state['preprocessing_triggered'] = False # Reset trigger
+        
+        # Display pipeline completion message only in the upload tab after successful run
+        if st.session_state['ui_data'] is not None:
+            st.success("✅ Kedro pipeline completed successfully and UI data loaded!")
 
     # Display tabs if data is ready
     if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
         with tab2:
-            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment']) # NEW ARG
+            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'])
         with tab3:
             show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'])
         with tab4:

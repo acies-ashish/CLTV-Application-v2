@@ -1,6 +1,6 @@
 # conf/base/parameters.yml
 
-# Column mappings for data standardization
+# Data Standardisation
 mapping_orders_expected_cols:
   Transaction ID: ["Transaction ID", "transaction_id"]
   Order ID: ["Order ID", "order_id"]
@@ -25,23 +25,25 @@ mapping_transactions_expected_cols:
   Payment Method: ["Payment Method", "payment_method", "Mode of Payment"]
   Total Amount: ["Total Payable", "total_payable", "amount_payable", "Total_amount"]
 
-# New parameters for df_name
 df_name_orders: "Orders"
 df_name_transactions: "Transactions"
 
-# Paths for sample data (relative to project root)
-sample_orders_path: "data/01_raw/Orders_v2.csv"
-sample_transactions_path: "data/01_raw/Transactional_v2.csv"
+# Operations Parameters
+at_risk_threshold_days: 70 # Customers with recency > this are considered at risk
 
-# Paths for uploaded data (Streamlit will write here)
-uploaded_orders_path: "data/00_external/uploaded_orders.csv"
-uploaded_transactions_path: "data/00_external/uploaded_transactions.csv"
-
-# Thresholds (will be used in later steps, but defined here for completeness)
-churn_inactive_days_threshold: 30
-at_risk_threshold_days: 70
+# Churn Model Parameters
+churn_inactive_days_threshold: 30 # Customers with recency > this are labeled as churned (for training)
 churn_model_n_estimators: 100
 churn_model_random_state: 42
-cox_model_churn_threshold: 30 # For prepare_survival_data
-cox_feature_cols: ['recency', 'frequency', 'monetary', 'aov', 'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d']
-predicted_churn_probability_threshold: 0.5
+predicted_churn_probability_threshold: 0.5 # Probability threshold to classify as churned (for prediction)
+
+# Cox Model Parameters
+cox_model_churn_threshold: 30 # Same as churn_inactive_days_threshold for consistency
+cox_feature_cols:
+  - frequency
+  - monetary
+  - aov
+  - avg_days_between_orders
+  - CLTV_30d
+  - CLTV_60d
+  - CLTV_90d
