@@ -1,0 +1,49 @@
+# conf/base/parameters.yml
+
+# Data Standardisation
+mapping_orders_expected_cols:
+  Transaction ID: ["Transaction ID", "transaction_id"]
+  Order ID: ["Order ID", "order_id"]
+  Product ID: ["Product ID", "product_id", "SKU", "Item Code"]
+  Quantity: ["Quantity", "Qty", "order_quantity"]
+  Total Amount: ["Total Amount", "total_amount", "amount"]
+  Unit Price: ["unit_price", "price"]
+  Order Date: ["Order Date", "order_date", "Order_date"]
+  Discount Code Used: ["Discount Code Used", "discount_code_used", "promo_code"]
+  Discount Value: ["Discount Value", "discount_value", "discount_amount"]
+  Shipping Cost: ["Shipping Cost", "shipping_cost", "freight"]
+  Total Payable: ["Total Payable", "total_payable", "amount_payable"]
+  Return Status: ["Return Status", "return_stat", "is_returned"]
+  Return Date: ["Return Date", "return_date"]
+
+mapping_transactions_expected_cols:
+  Transaction ID: ["Transaction ID", "transaction_id"]
+  Visit ID: ["Visit ID", "visit_id"]
+  User ID: ["User ID", "user_id", "Customer ID"]
+  Order ID: ["Order ID", "order_id"]
+  Purchase Date: ["Purchase Date", "purchase_date", "Transaction Date"]
+  Payment Method: ["Payment Method", "payment_method", "Mode of Payment"]
+  Total Amount: ["Total Payable", "total_payable", "amount_payable", "Total_amount"]
+
+df_name_orders: "Orders"
+df_name_transactions: "Transactions"
+
+# Operations Parameters
+at_risk_threshold_days: 70 # Customers with recency > this are considered at risk
+
+# Churn Model Parameters
+churn_inactive_days_threshold: 30 # Customers with recency > this are labeled as churned (for training)
+churn_model_n_estimators: 100
+churn_model_random_state: 42
+predicted_churn_probability_threshold: 0.5 # Probability threshold to classify as churned (for prediction)
+
+# Cox Model Parameters
+cox_model_churn_threshold: 30 # Same as churn_inactive_days_threshold for consistency
+cox_feature_cols:
+  - frequency
+  - monetary
+  - aov
+  - avg_days_between_orders
+  - CLTV_30d
+  - CLTV_60d
+  - CLTV_90d
