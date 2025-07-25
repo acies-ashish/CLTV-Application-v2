@@ -4,7 +4,7 @@ import pandas as pd
 import difflib
 import os
 from datetime import datetime, timedelta
-from typing import Tuple, Dict, List # Import necessary types
+from typing import Tuple, Dict, List
 from lifetimes.utils import summary_data_from_transaction_data
 from lifetimes import BetaGeoFitter, GammaGammaFitter
 from lifelines import CoxPHFitter
@@ -281,27 +281,41 @@ def label_churned_customers(customer_df: pd.DataFrame, inactive_days_threshold: 
 def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     """
     Extracts features and labels for churn prediction.
+    Ensures 'User ID' is the index for X and y to maintain mapping.
     This function acts as a Kedro node.
     """
     print("Extracting churn features and labels...")
+    
+    # Ensure 'User ID' is present and set as index
+    if 'User ID' not in customer_df.columns:
+        raise ValueError("customer_df must contain 'User ID' column for churn feature extraction.")
+    
+    # Create a copy and set 'User ID' as the index
+    # drop=False keeps 'User ID' as a column, but the index is what matters for merging
+    df_indexed = customer_df.set_index('User ID', drop=False) 
+
     feature_cols = [
         'frequency', 'monetary', 'aov',
         'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d'
     ]
+    
     # Ensure all feature columns exist before selection
-    existing_feature_cols = [col for col in feature_cols if col in customer_df.columns]
+    existing_feature_cols = [col for col in feature_cols if col in df_indexed.columns]
     if len(existing_feature_cols) < len(feature_cols):
         missing_cols = set(feature_cols) - set(existing_feature_cols)
         print(f"Warning: Missing churn feature columns: {missing_cols}. Using available features.")
     
-    X = customer_df[existing_feature_cols]
-    y = customer_df['is_churned']
+    X = df_indexed[existing_feature_cols]
+    y = df_indexed['is_churned']
     
     # --- Diagnostic Print ---
+    # Corrected line: Access index as a list or use .to_list() on a slice
+    print(f"Diagnostic: get_churn_features_labels - X index sample:\n{X.index[:5].tolist()}")
     print(f"Diagnostic: get_churn_features_labels - y (is_churned) value counts:\n{y.value_counts()}")
     # --- End Diagnostic Print ---
 
-    return X, y.to_frame()
+    return X, y.to_frame() # y.to_frame() is fine, it will inherit the index
+
 
 def prepare_survival_data(customer_df: pd.DataFrame, churn_threshold: int) -> pd.DataFrame:
     """
@@ -377,6 +391,7 @@ def train_churn_prediction_model(X: pd.DataFrame, y: pd.DataFrame, n_estimators:
     This function acts as a Kedro node.
     """
     print("Training churn prediction model...")
+    # X and y should already have 'User ID' as index from get_churn_features_labels
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.4, random_state=random_state)
     
     # --- Diagnostic Print ---
@@ -386,7 +401,7 @@ def train_churn_prediction_model(X: pd.DataFrame, y: pd.DataFrame, n_estimators:
     # --- End Diagnostic Print ---
 
     model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
-    model.fit(X_train, y_train.values.ravel())
+    model.fit(X_train, y_train.values.ravel()) # .values.ravel() flattens the DataFrame to a 1D array
     report = classification_report(y_test, model.predict(X_test), output_dict=True)
     importances = model.feature_importances_.tolist()
     return model, report, importances, X_test, y_test
@@ -397,13 +412,17 @@ def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) 
     This function acts as a Kedro node.
     """
     print("Predicting churn probabilities...")
-    # Ensure the index of X is preserved, and reset to column for merging
+    # X's index should be 'User ID' from upstream node (get_churn_features_labels)
     prob_df = pd.DataFrame(model.predict_proba(X)[:, 1], index=X.index, columns=['predicted_churn_prob'])
-    prob_df = prob_df.reset_index().rename(columns={'index': 'User ID'})
+    # No need to reset_index() and rename if X's index is already 'User ID'
+    # Just ensure the index is treated as 'User ID' for the output DataFrame
+    prob_df.index.name = 'User ID' # Explicitly name the index
+    prob_df = prob_df.reset_index() # Convert index to column
     prob_df['User ID'] = prob_df['User ID'].astype(str) # Ensure User ID is string
     
     # --- Diagnostic Print ---
     print(f"Diagnostic: predict_churn_probabilities - predicted_churn_prob describe:\n{prob_df['predicted_churn_prob'].describe()}")
+    print(f"Diagnostic: predict_churn_probabilities - User ID sample:\n{prob_df['User ID'].head().tolist()}")
     # --- End Diagnostic Print ---
 
     return prob_df
@@ -414,13 +433,14 @@ def assign_predicted_churn_labels(predicted_churn_prob: pd.DataFrame, threshold:
     This function acts as a Kedro node.
     """
     print("Assigning predicted churn labels...")
-    # Ensure the index of predicted_churn_prob is preserved when creating the new DataFrame, and reset to column for merging
-    churn_labels_df = (predicted_churn_prob['predicted_churn_prob'] >= threshold).astype(int).to_frame(name='predicted_churn')
-    churn_labels_df = churn_labels_df.reset_index().rename(columns={'index': 'User ID'})
+    # Use the 'User ID' column from predicted_churn_prob directly and create the new column
+    churn_labels_df = predicted_churn_prob[['User ID']].copy() # Start with User ID
+    churn_labels_df['predicted_churn'] = (predicted_churn_prob['predicted_churn_prob'] >= threshold).astype(int)
     churn_labels_df['User ID'] = churn_labels_df['User ID'].astype(str) # Ensure User ID is string
     
     # --- Diagnostic Print ---
     print(f"Diagnostic: assign_predicted_churn_labels - predicted_churn value counts:\n{churn_labels_df['predicted_churn'].value_counts()}")
+    print(f"Diagnostic: assign_predicted_churn_labels - User ID sample:\n{churn_labels_df['User ID'].head().tolist()}")
     if churn_labels_df['predicted_churn'].sum() == 0:
         print("WARNING: No customers predicted as churned. Consider adjusting 'predicted_churn_probability_threshold'.")
     # --- End Diagnostic Print ---
@@ -738,4 +758,3 @@ def format_date_with_ordinal(date):
 # Helper function to check for duplicate columns (from original streamlit_ui.py)
 def has_duplicate_columns(df1, df2):
     return df1.columns.duplicated().any() or df2.columns.duplicated().any()
-
