@@ -103,9 +103,10 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     start_date = kpi_data.get('start_date', "N/A")
     end_date = kpi_data.get('end_date', "N/A")
     total_customers = kpi_data.get('total_customers', 0)
-    high_value_customers = kpi_data.get('high_value_customers', 0)
-    mid_value_customers = kpi_data.get('mid_value_customers', 0)
-    low_value_customers = kpi_data.get('low_value_customers', 0)
+    # Updated KPI access for new segment names
+    loyalty_leaders = kpi_data.get('loyalty_leaders', 0)
+    active_shoppers = kpi_data.get('active_shoppers', 0)
+    new_discoverers = kpi_data.get('new_discoverers', 0)
     # customers_at_risk is now a separate dataset, will display from there
 
     row1 = st.columns(3, gap="small")
@@ -125,10 +126,11 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     st.divider()
     st.subheader("📈 Visual Insights")
 
+    # Updated segment colors for new segment names
     segment_colors = {
-        'High': '#1f77b4',     
-        'Medium': "#5fa2dd",   
-        'Low': "#cfe2f3"       
+        'Loyalty Leaders': '#1f77b4',     
+        'Active Shoppers': "#5fa2dd",   
+        'New Discoverers': "#cfe2f3"      
     }
 
     # Use the pre-calculated segment_counts_data directly for the pie chart
@@ -148,16 +150,18 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             st.plotly_chart(fig1, use_container_width=True)
             
             metrics_cols = st.columns(3)
-            metrics_cols[0].metric("High Value*", high_value_customers)
-            metrics_cols[1].metric("Medium Value", mid_value_customers)
-            metrics_cols[2].metric("Low Value", low_value_customers)
-            st.caption("📌 *High Value Customers refers to users whose **RFM Score is in the top 33%.**")
+            # Updated metric display for new segment names
+            metrics_cols[0].metric("Loyalty Leaders*", loyalty_leaders)
+            metrics_cols[1].metric("Active Shoppers", active_shoppers)
+            metrics_cols[2].metric("New Discoverers", new_discoverers)
+            st.caption("📌 *Loyalty Leaders refers to users whose **RFM Score is in the top 33%.**")
         
         with viz_col2:
             st.markdown("#### 📊 Segment-wise Summary Metrics")
 
-            segment_order = ["High", "Medium", "Low"]
-            colors = {"High": "#1f77b4", "Medium": "#5fa2dd", "Low": "#9dcbf3"}
+            # Updated segment order for new segment names
+            segment_order = ["Loyalty Leaders", "Active Shoppers", "New Discoverers"]
+            colors = {"Loyalty Leaders": "#1f77b4", "Active Shoppers": "#5fa2dd", "New Discoverers": "#9dcbf3"}
 
             cards = st.columns(3)
             if not segment_summary_data.empty: # Ensure segment_summary_data is not empty for this part
@@ -176,7 +180,7 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                                     font-family: 'Segoe UI', sans-serif;
                                 ">
                                     <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                        {segment} Segment
+                                        {segment}
                                     </h4>
                                     <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
                                         <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
@@ -201,11 +205,12 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     st.divider()
     st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
-        selected_segment = st.selectbox("Choose a Customer Segment", options=['High', 'Medium', 'Low'], index=0, key="top_products_segment_select")
+        # Updated selectbox options for new segment names
+        selected_segment = st.selectbox("Choose a Customer Segment", options=['Loyalty Leaders', 'Active Shoppers', 'New Discoverers'], index=0, key="top_products_segment_select")
         current_segment_products = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         if not current_segment_products.empty:
-            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}' Segment")
+            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}'")
             fig_products = px.bar(
                 current_segment_products,
                 x='product_id',
@@ -235,8 +240,9 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
 
     # Table Filter
     if not predicted_cltv_display_data.empty:
+        # Updated selectbox options for new segment names
         table_segment = st.selectbox(
-            "📋 Table Filter by Segment", ["All", "High", "Medium", "Low"],
+            "📋 Table Filter by Segment", ["All", "Loyalty Leaders", "Active Shoppers", "New Discoverers"],
             index=0, key="predicted_cltv_table_segment_filter"
         )
 
@@ -289,8 +295,9 @@ def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
+        # Updated selectbox options for new segment names
         segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                     options=list(realization_curve_data.keys()),
+                                     options=['Overall', 'Loyalty Leaders', 'Active Shoppers', 'New Discoverers'],
                                      index=0, key="realization_curve_segment_select")
         
         chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
@@ -358,7 +365,8 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'High': '#1f77b4', 'Medium': '#5fa2dd', 'Low': '#cfe2f3'},
+                # Updated to use new segment names
+                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
                 text='Avg Churn Probability'
             )
             fig_churn.update_traces(texttemplate='%{text:.1%}', textposition='outside')
@@ -376,7 +384,8 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'High': '#1f77b4', 'Medium': '#5fa2dd', 'Low': '#cfe2f3'},
+                # Updated to use new segment names
+                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
                 text='Avg Expected Active Days'
             )
             fig_days.update_traces(texttemplate='%{text:.0f}', textposition='outside')
@@ -426,6 +435,8 @@ def run_streamlit_app():
             st.success("Files uploaded. Click 'Process Data' to continue.")
         elif use_sample_data:
             st.session_state['data_source'] = 'sample'
+            st.session_state['orders_file_obj'] = None # Clear file objects if switching to sample
+            st.session_state['transactions_file_obj'] = None # Clear file objects if switching to sample
             st.success("Using sample data. Click 'Process Data' to continue.")
 
         if st.button("⚙️ Process Data (Run Kedro Pipeline)", key="process_data_button"):
