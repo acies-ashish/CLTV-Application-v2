@@ -295,20 +295,37 @@ def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
-        # Updated selectbox options for new segment names
+        # Updated selectbox options for new segment names and added "All Segments" as default
+        segment_options_list = ['All Segments', 'Overall Average', 'Loyalty Leaders', 'Active Shoppers', 'New Discoverers']
         segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                     options=['Overall', 'Loyalty Leaders', 'Active Shoppers', 'New Discoverers'],
-                                     index=0, key="realization_curve_segment_select")
+                                     options=segment_options_list,
+                                     index=0, # Set "All Segments" as default
+                                     key="realization_curve_segment_select")
         
         chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
 
         if not chart_df.empty:
+            # Determine color mapping based on selected option
+            if segment_option == "All Segments":
+                color_col = 'Segment' # Use the new 'Segment' column for coloring
+                # Define colors for the segments when all are plotted
+                color_map = {
+                    'Loyalty Leaders': '#1f77b4',
+                    'Active Shoppers': '#5fa2dd',
+                    'New Discoverers': '#cfe2f3'
+                }
+            else:
+                color_col = None # No color mapping for single segments or overall average
+                color_map = None
+
             fig = px.line(
                 chart_df,
                 x="Period (Days)",
                 y="Avg CLTV per User",
                 text="Avg CLTV per User",
-                markers=True
+                markers=True,
+                color=color_col, # Apply color mapping if color_col is set
+                color_discrete_map=color_map # Apply specific colors
             )
             
             fig.update_traces(

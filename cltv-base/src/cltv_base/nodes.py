@@ -661,14 +661,15 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     df['revenue'] = df['quantity'] * df['unitprice']
 
     segment_options = {
-        "Overall": rfm_segmented_df['User ID'].unique(),
-        # Updated to use new segment names
+        "Overall Average": rfm_segmented_df['User ID'].unique(), # Renamed from "Overall"
         "Loyalty Leaders": rfm_segmented_df[rfm_segmented_df['segment'] == 'Loyalty Leaders']['User ID'].unique(),
         "Active Shoppers": rfm_segmented_df[rfm_segmented_df['segment'] == 'Active Shoppers']['User ID'].unique(),
         "New Discoverers": rfm_segmented_df[rfm_segmented_df['segment'] == 'New Discoverers']['User ID'].unique()
     }
 
     intervals = [15, 30, 45, 60, 90]
+    
+    all_segments_data_list = [] # To store data for "All Segments"
 
     for option_name, selected_users in segment_options.items():
         if len(selected_users) == 0:
@@ -695,10 +696,23 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
             avg_cltv = revenue / user_count
             cltv_values.append(round(avg_cltv, 2))
 
-        realization_data[option_name] = pd.DataFrame({
+        segment_curve_df = pd.DataFrame({
             "Period (Days)": intervals,
             "Avg CLTV per User": cltv_values
         })
+        realization_data[option_name] = segment_curve_df
+
+        # Prepare data for "All Segments" if it's one of the individual segments
+        if option_name in ['Loyalty Leaders', 'Active Shoppers', 'New Discoverers']:
+            segment_curve_df['Segment'] = option_name # Add segment column
+            all_segments_data_list.append(segment_curve_df)
+
+    # Combine all individual segment data for the "All Segments" view
+    if all_segments_data_list:
+        realization_data["All Segments"] = pd.concat(all_segments_data_list, ignore_index=True)
+    else:
+        realization_data["All Segments"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
+
     return realization_data
 
 def prepare_churn_summary_data(rfm_segmented_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -741,7 +755,7 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
     if not all(col in rfm_segmented_df.columns for col in required_cols):
         print("Warning: Missing required columns for detailed churn view. Returning empty DataFrame.")
         # --- Diagnostic Print ---
-        missing_cols = [col for col in required_cols if col not in rfm_segmented_df.columns]
+        missing_cols = [col for col in ['predicted_churn', 'predicted_churn_prob', 'expected_active_days', 'segment'] if col not in rfm_segmented_df.columns]
         print(f"Diagnostic: prepare_churn_detailed_view_data - Missing columns: {missing_cols}")
         print(f"Diagnostic: prepare_churn_detailed_view_data - Columns available: {rfm_segmented_df.columns.tolist()}")
         # --- End Diagnostic Print ---
