@@ -216,7 +216,7 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
 
 def perform_rfm_segmentation(customer_level_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Performs RFM segmentation on customer-level data.
+    Performs RFM segmentation on customer-level data using new, positive labels.
     This function acts as a Kedro node.
     """
     print("Performing RFM segmentation...")
@@ -233,11 +233,11 @@ def perform_rfm_segmentation(customer_level_df: pd.DataFrame) -> pd.DataFrame:
 
     def assign_segment(score):
         if score <= q1:
-            return 'Low'
+            return 'New Discoverers' # Changed from 'Low'
         elif score <= q2:
-            return 'Medium'
+            return 'Active Shoppers' # Changed from 'Medium'
         else:
-            return 'High'
+            return 'Loyalty Leaders' # Changed from 'High'
 
     df['segment'] = df['RFM_score'].apply(assign_segment)
     return df
@@ -414,8 +414,6 @@ def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) 
     print("Predicting churn probabilities...")
     # X's index should be 'User ID' from upstream node (get_churn_features_labels)
     prob_df = pd.DataFrame(model.predict_proba(X)[:, 1], index=X.index, columns=['predicted_churn_prob'])
-    # No need to reset_index() and rename if X's index is already 'User ID'
-    # Just ensure the index is treated as 'User ID' for the output DataFrame
     prob_df.index.name = 'User ID' # Explicitly name the index
     prob_df = prob_df.reset_index() # Convert index to column
     prob_df['User ID'] = prob_df['User ID'].astype(str) # Ensure User ID is string
@@ -512,13 +510,14 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
 
     kpis['total_customers'] = int(len(rfm_segmented_df)) # Convert to int
     if 'segment' in rfm_segmented_df.columns:
-        kpis['high_value_customers'] = int((rfm_segmented_df['segment'] == 'High').sum()) # Convert to int
-        kpis['mid_value_customers'] = int((rfm_segmented_df['segment'] == "Medium").sum()) # Convert to int
-        kpis['low_value_customers'] = int((rfm_segmented_df['segment'] == "Low").sum()) # Convert to int
+        # Updated to use new segment names
+        kpis['loyalty_leaders'] = int((rfm_segmented_df['segment'] == 'Loyalty Leaders').sum())
+        kpis['active_shoppers'] = int((rfm_segmented_df['segment'] == "Active Shoppers").sum())
+        kpis['new_discoverers'] = int((rfm_segmented_df['segment'] == "New Discoverers").sum())
     else:
-        kpis['high_value_customers'] = 0
-        kpis['mid_value_customers'] = 0
-        kpis['low_value_customers'] = 0
+        kpis['loyalty_leaders'] = 0
+        kpis['active_shoppers'] = 0
+        kpis['new_discoverers'] = 0
     
     return kpis
 
@@ -562,7 +561,8 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     """
     print("Preparing top products by segment data...")
     top_products_by_segment = {}
-    segments = ['High', 'Medium', 'Low']
+    # Updated to use new segment names
+    segments = ['Loyalty Leaders', 'Active Shoppers', 'New Discoverers']
 
     # Standardize orders_df columns for product calculation
     orders_for_products = orders_df.copy()
@@ -631,7 +631,8 @@ def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> p
         var_name='CLTV Type',
         value_name='Average CLTV'
     )
-    segment_order = ['Low', 'Medium', 'High']
+    # Updated to use new segment names
+    segment_order = ['New Discoverers', 'Active Shoppers', 'Loyalty Leaders']
     segment_melted['segment'] = pd.Categorical(segment_melted['segment'], categories=segment_order, ordered=True)
     return segment_melted.sort_values(by='segment')
 
@@ -660,13 +661,15 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     df['revenue'] = df['quantity'] * df['unitprice']
 
     segment_options = {
-        "Overall": rfm_segmented_df['User ID'].unique(),
-        "High CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'High']['User ID'].unique(),
-        "Mid CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'Medium']['User ID'].unique(),
-        "Low CLTV Users": rfm_segmented_df[rfm_segmented_df['segment'] == 'Low']['User ID'].unique()
+        "Overall Average": rfm_segmented_df['User ID'].unique(), # Renamed from "Overall"
+        "Loyalty Leaders": rfm_segmented_df[rfm_segmented_df['segment'] == 'Loyalty Leaders']['User ID'].unique(),
+        "Active Shoppers": rfm_segmented_df[rfm_segmented_df['segment'] == 'Active Shoppers']['User ID'].unique(),
+        "New Discoverers": rfm_segmented_df[rfm_segmented_df['segment'] == 'New Discoverers']['User ID'].unique()
     }
 
     intervals = [15, 30, 45, 60, 90]
+    
+    all_segments_data_list = [] # To store data for "All Segments"
 
     for option_name, selected_users in segment_options.items():
         if len(selected_users) == 0:
@@ -693,10 +696,23 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
             avg_cltv = revenue / user_count
             cltv_values.append(round(avg_cltv, 2))
 
-        realization_data[option_name] = pd.DataFrame({
+        segment_curve_df = pd.DataFrame({
             "Period (Days)": intervals,
             "Avg CLTV per User": cltv_values
         })
+        realization_data[option_name] = segment_curve_df
+
+        # Prepare data for "All Segments" if it's one of the individual segments
+        if option_name in ['Loyalty Leaders', 'Active Shoppers', 'New Discoverers']:
+            segment_curve_df['Segment'] = option_name # Add segment column
+            all_segments_data_list.append(segment_curve_df)
+
+    # Combine all individual segment data for the "All Segments" view
+    if all_segments_data_list:
+        realization_data["All Segments"] = pd.concat(all_segments_data_list, ignore_index=True)
+    else:
+        realization_data["All Segments"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
+
     return realization_data
 
 def prepare_churn_summary_data(rfm_segmented_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
@@ -739,7 +755,7 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
     if not all(col in rfm_segmented_df.columns for col in required_cols):
         print("Warning: Missing required columns for detailed churn view. Returning empty DataFrame.")
         # --- Diagnostic Print ---
-        missing_cols = [col for col in required_cols if col not in rfm_segmented_df.columns]
+        missing_cols = [col for col in ['predicted_churn', 'predicted_churn_prob', 'expected_active_days', 'segment'] if col not in rfm_segmented_df.columns]
         print(f"Diagnostic: prepare_churn_detailed_view_data - Missing columns: {missing_cols}")
         print(f"Diagnostic: prepare_churn_detailed_view_data - Columns available: {rfm_segmented_df.columns.tolist()}")
         # --- End Diagnostic Print ---

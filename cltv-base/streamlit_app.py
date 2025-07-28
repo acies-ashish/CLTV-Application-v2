@@ -46,12 +46,9 @@ def run_kedro_main_pipeline_and_load_ui_data():
     """
     try:
         with KedroSession.create(project_path=KEDRO_PROJECT_ROOT) as session:
-            context = session.load_context() # Explicitly load context
-            
-            # Run the full pipeline
+            context = session.load_context()
             session.run(pipeline_name="preprocessing_pipeline") 
             
-            # Load all pre-calculated UI data from the catalog
             ui_data = {}
             ui_data['rfm_segmented'] = context.catalog.load("final_rfm_cltv_churn_data")
             ui_data['kpi_data'] = context.catalog.load("kpi_data_for_ui")
@@ -65,7 +62,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['active_days_summary'] = context.catalog.load("active_days_summary_data_for_ui")
             ui_data['churn_detailed_view'] = context.catalog.load("churn_detailed_view_data_for_ui")
             ui_data['customers_at_risk'] = context.catalog.load("customers_at_risk_df")
-            # Also load the original orders and transactions data if needed for UI functions that directly use them
             ui_data['df_orders_merged'] = context.catalog.load("orders_merged_with_user_id")
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
 
@@ -74,6 +70,14 @@ def run_kedro_main_pipeline_and_load_ui_data():
     except Exception as e:
         st.error(f"❌ Error running Kedro pipeline or loading UI data: {e}")
         return None
+
+# Helper function to add ordinal suffix (copied from nodes.py)
+def format_date_with_ordinal(date):
+    if pd.isna(date):
+        return "N/A"
+    day = int(date.strftime('%d'))
+    suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
+    return f"{day}{suffix} {date.strftime('%B %Y')}"
 
 # --- Streamlit UI Rendering Functions (No calculations here) ---
 
@@ -92,21 +96,21 @@ def kpi_card(title, value, color="black"):
         </div>
     """, unsafe_allow_html=True)
 
-def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame]):
+def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
     st.subheader("📌 Key KPIs")
 
-    # Use pre-calculated KPI data
+    # KPIs are now based on the full dataset as processed by Kedro
     total_revenue = kpi_data.get('total_revenue', 0)
     avg_cltv = kpi_data.get('avg_cltv', 0)
     avg_aov = kpi_data.get('avg_aov', 0)
     avg_txns_per_user = kpi_data.get('avg_txns_per_user', 0)
-    start_date = kpi_data.get('start_date', "N/A")
-    end_date = kpi_data.get('end_date', "N/A")
+    start_date_kpi = kpi_data.get('start_date', "N/A") # Now directly from kpi_data, which uses full data
+    end_date_kpi = kpi_data.get('end_date', "N/A")     # Now directly from kpi_data, which uses full data
     total_customers = kpi_data.get('total_customers', 0)
-    high_value_customers = kpi_data.get('high_value_customers', 0)
-    mid_value_customers = kpi_data.get('mid_value_customers', 0)
-    low_value_customers = kpi_data.get('low_value_customers', 0)
-    # customers_at_risk is now a separate dataset, will display from there
+    loyalty_leaders = kpi_data.get('loyalty_leaders', 0)
+    active_shoppers = kpi_data.get('active_shoppers', 0)
+    new_discoverers = kpi_data.get('new_discoverers', 0)
+
 
     row1 = st.columns(3, gap="small")
     with row1[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
@@ -119,25 +123,24 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
 
     row3 = st.columns(3, gap="small")
     with row3[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row3[1]: kpi_card("📆 Data Timeframe", f"{start_date} to {end_date}", color="black")
+    with row3[1]: kpi_card("📆 Data Timeframe", f"{start_date_kpi} to {end_date_kpi}", color="black")
     with row3[2]: kpi_card("👥 Total Customers", total_customers, color="black")
 
     st.divider()
     st.subheader("📈 Visual Insights")
 
     segment_colors = {
-        'High': '#1f77b4',     
-        'Medium': "#5fa2dd",   
-        'Low': "#cfe2f3"       
+        'Loyalty Leaders': '#1f77b4',     
+        'Active Shoppers': "#5fa2dd",   
+        'New Discoverers': "#cfe2f3"      
     }
 
-    # Use the pre-calculated segment_counts_data directly for the pie chart
-    if not segment_counts_data.empty: # Check if the new segment_counts_data is available
+    if not segment_counts_data.empty:
         viz_col1, viz_col2 = st.columns([1, 1.2])
         with viz_col1:
             st.markdown("#### 🎯 Customer Segment Distribution")
             fig1 = px.pie(
-                segment_counts_data, # Use the new data
+                segment_counts_data,
                 values='Count',
                 names='Segment',
                 hole=0.45,
@@ -148,21 +151,21 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             st.plotly_chart(fig1, use_container_width=True)
             
             metrics_cols = st.columns(3)
-            metrics_cols[0].metric("High Value*", high_value_customers)
-            metrics_cols[1].metric("Medium Value", mid_value_customers)
-            metrics_cols[2].metric("Low Value", low_value_customers)
-            st.caption("📌 *High Value Customers refers to users whose **RFM Score is in the top 33%.**")
+            metrics_cols[0].metric("Loyalty Leaders*", loyalty_leaders)
+            metrics_cols[1].metric("Active Shoppers", active_shoppers)
+            metrics_cols[2].metric("New Discoverers", new_discoverers)
+            st.caption("📌 *Loyalty Leaders refers to users whose **RFM Score is in the top 33%.**")
         
         with viz_col2:
             st.markdown("#### 📊 Segment-wise Summary Metrics")
 
-            segment_order = ["High", "Medium", "Low"]
-            colors = {"High": "#1f77b4", "Medium": "#5fa2dd", "Low": "#9dcbf3"}
+            segment_order = ["Loyalty Leaders", "Active Shoppers", "New Discoverers"]
+            colors = {"Loyalty Leaders": "#1f77b4", "Active Shoppers": "#5fa2dd", "New Discoverers": "#9dcbf3"}
 
             cards = st.columns(3)
-            if not segment_summary_data.empty: # Ensure segment_summary_data is not empty for this part
+            if not segment_summary_data.empty:
                 for i, segment in enumerate(segment_order):
-                    if segment in segment_summary_data.index: # Ensure segment exists
+                    if segment in segment_summary_data.index:
                         metrics = segment_summary_data.loc[segment]
                         with cards[i]:
                             st.markdown(f"""
@@ -176,7 +179,7 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                                     font-family: 'Segoe UI', sans-serif;
                                 ">
                                     <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                        {segment} Segment
+                                        {segment}
                                     </h4>
                                     <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
                                         <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
@@ -201,11 +204,11 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     st.divider()
     st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
-        selected_segment = st.selectbox("Choose a Customer Segment", options=['High', 'Medium', 'Low'], index=0, key="top_products_segment_select")
+        selected_segment = st.selectbox("Choose a Customer Segment", options=['Loyalty Leaders', 'Active Shoppers', 'New Discoverers'], index=0, key="top_products_segment_select")
         current_segment_products = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         if not current_segment_products.empty:
-            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}' Segment")
+            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}' (All Time)")
             fig_products = px.bar(
                 current_segment_products,
                 x='product_id',
@@ -236,7 +239,7 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
     # Table Filter
     if not predicted_cltv_display_data.empty:
         table_segment = st.selectbox(
-            "📋 Table Filter by Segment", ["All", "High", "Medium", "Low"],
+            "📋 Table Filter by Segment", ["All", "Loyalty Leaders", "Active Shoppers", "New Discoverers"],
             index=0, key="predicted_cltv_table_segment_filter"
         )
 
@@ -257,8 +260,21 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
     # 📊 New Bar Chart: Segment-Wise Avg CLTV Comparison
     st.markdown("#### 📊 Average Historical vs Predicted CLTV per Segment")
     if not cltv_comparison_data.empty:
+        # Add segment filter for the chart
+        chart_segment_options = ["All", "Loyalty Leaders", "Active Shoppers", "New Discoverers"]
+        selected_chart_segment = st.selectbox(
+            "Filter Chart by Segment",
+            options=chart_segment_options,
+            index=0, # Default to "All"
+            key="cltv_comparison_chart_segment_filter"
+        )
+
+        filtered_chart_data = cltv_comparison_data.copy()
+        if selected_chart_segment != "All":
+            filtered_chart_data = filtered_chart_data[filtered_chart_data['segment'] == selected_chart_segment]
+
         fig_bar = px.bar(
-            cltv_comparison_data,
+            filtered_chart_data, # Use filtered data for the chart
             x='segment',
             y='Average CLTV',
             color='CLTV Type',
@@ -289,19 +305,34 @@ def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
+        segment_options_list = ['All Segments', 'Overall Average', 'Loyalty Leaders', 'Active Shoppers', 'New Discoverers']
         segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                     options=list(realization_curve_data.keys()),
-                                     index=0, key="realization_curve_segment_select")
+                                     options=segment_options_list,
+                                     index=0, # Set "All Segments" as default
+                                     key="realization_curve_segment_select")
         
         chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
 
         if not chart_df.empty:
+            if segment_option == "All Segments":
+                color_col = 'Segment'
+                color_map = {
+                    'Loyalty Leaders': '#1f77b4',
+                    'Active Shoppers': '#5fa2dd',
+                    'New Discoverers': '#cfe2f3'
+                }
+            else:
+                color_col = None
+                color_map = None
+
             fig = px.line(
                 chart_df,
                 x="Period (Days)",
                 y="Avg CLTV per User",
                 text="Avg CLTV per User",
-                markers=True
+                markers=True,
+                color=color_col,
+                color_discrete_map=color_map
             )
             
             fig.update_traces(
@@ -358,7 +389,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'High': '#1f77b4', 'Medium': '#5fa2dd', 'Low': '#cfe2f3'},
+                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
                 text='Avg Churn Probability'
             )
             fig_churn.update_traces(texttemplate='%{text:.1%}', textposition='outside')
@@ -376,7 +407,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'High': '#1f77b4', 'Medium': '#5fa2dd', 'Low': '#cfe2f3'},
+                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
                 text='Avg Expected Active Days'
             )
             fig_days.update_traces(texttemplate='%{text:.0f}', textposition='outside')
@@ -402,12 +433,11 @@ def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard - Kedro Powered")
 
-    # Initialize session state variables for UI data
     if 'ui_data' not in st.session_state:
         st.session_state['ui_data'] = None
     if 'preprocessing_done' not in st.session_state:
         st.session_state['preprocessing_done'] = False
-
+    
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Upload / Load Data", "Insights", "Detailed View", "Predictions", "Realization Curve", "Churn" 
     ])
@@ -426,10 +456,11 @@ def run_streamlit_app():
             st.success("Files uploaded. Click 'Process Data' to continue.")
         elif use_sample_data:
             st.session_state['data_source'] = 'sample'
+            st.session_state['orders_file_obj'] = None
+            st.session_state['transactions_file_obj'] = None
             st.success("Using sample data. Click 'Process Data' to continue.")
 
         if st.button("⚙️ Process Data (Run Kedro Pipeline)", key="process_data_button"):
-            # Clear the cache to force a re-run of the pipeline
             st.cache_data.clear() 
             if 'data_source' not in st.session_state:
                 st.warning("Please upload files or select sample data first.")
@@ -438,7 +469,6 @@ def run_streamlit_app():
             with st.spinner("Preparing data for Kedro..."):
                 try:
                     if st.session_state['data_source'] == 'uploaded':
-                        # Save uploaded files to the fixed external data directory for Kedro to read
                         with open(FIXED_ORDERS_RAW_PATH, "wb") as f:
                             f.write(st.session_state['orders_file_obj'].getbuffer())
                         with open(FIXED_TRANSACTIONS_RAW_PATH, "wb") as f:
@@ -447,35 +477,30 @@ def run_streamlit_app():
                         st.info(f"Uploaded files saved to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}")
 
                     elif st.session_state['data_source'] == 'sample':
-                        # Copy sample files to the fixed external data directory for Kedro to read
                         shutil.copy(SAMPLE_ORDER_PATH, FIXED_ORDERS_RAW_PATH)
                         shutil.copy(SAMPLE_TRANS_PATH, FIXED_TRANSACTIONS_RAW_PATH)
                         st.info(f"Sample files copied to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}")
                     
-                    # Display pipeline initiation message
                     st.info("Initiating Kedro pipeline run...")
 
                     st.session_state['preprocessing_triggered'] = True
-                    st.rerun() # Using st.rerun()
+                    st.rerun()
                 except Exception as e:
                     st.error(f"❌ Error preparing data: {e}")
                     st.session_state['preprocessing_triggered'] = False
 
-    # This block runs after the 'Process Data' button is clicked and reruns the app
     if st.session_state.get('preprocessing_triggered'):
         st.session_state['ui_data'] = run_kedro_main_pipeline_and_load_ui_data()
         st.session_state['preprocessing_done'] = True
-        st.session_state['preprocessing_triggered'] = False # Reset trigger
+        st.session_state['preprocessing_triggered'] = False
         
-        # Display pipeline completion message only in the upload tab after successful run
         if st.session_state['ui_data'] is not None:
             st.success("✅ Kedro pipeline completed successfully and UI data loaded!")
 
-    # Display tabs if data is ready
     if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
         with tab2:
-            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'])
+            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
             show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'])
         with tab4:
