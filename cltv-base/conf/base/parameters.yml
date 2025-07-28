@@ -47,3 +47,8 @@ cox_feature_cols:
   - CLTV_30d
   - CLTV_60d
   - CLTV_90d
+
+# New RFM Segmentation Parameters (ADJUSTED RECENCY THRESHOLDS)
+rfm_recency_thresholds: [7, 14, 30, 60] # Days: 0-7 (5), 8-14 (4), 15-30 (3), 31-60 (2), >60 (1)
+rfm_frequency_thresholds: [1, 2, 4, 7] # Transactions: 0-1 (1), 2 (2), 3-4 (3), 5-7 (4), >7 (5)
+rfm_monetary_thresholds: [500, 1500, 3000, 7000] # Amount: 0-500 (1), 501-1500 (2), 1501-3000 (3), 3001-7000 (4), >7000 (5)

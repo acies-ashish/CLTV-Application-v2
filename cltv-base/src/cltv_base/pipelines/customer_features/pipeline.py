@@ -22,7 +22,12 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=perform_rfm_segmentation,
-                inputs="customer_level_features",
+                inputs=[
+                    "customer_level_features",
+                    "params:rfm_recency_thresholds",    # New input
+                    "params:rfm_frequency_thresholds",  # New input
+                    "params:rfm_monetary_thresholds"    # New input
+                ],
                 outputs="rfm_segmented_customers",
                 name="perform_rfm_segmentation",
             ),
@@ -35,4 +40,3 @@ def create_pipeline(**kwargs) -> Pipeline:
         ],
         tags="customer_features" # Optional: Add a tag for this pipeline
     )
-
