@@ -42,8 +42,9 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
 
     # Data Timeframe (calculated from the full orders_df)
     if 'Order Date' in orders_df.columns:
-        start_dt = pd.to_datetime(orders_df['Order Date']).min()
-        end_dt = pd.to_datetime(orders_df['Order Date']).max()
+        # Added dayfirst=True to pd.to_datetime to silence the warning
+        start_dt = pd.to_datetime(orders_df['Order Date'], dayfirst=True).min()
+        end_dt = pd.to_datetime(orders_df['Order Date'], dayfirst=True).max()
         kpis['start_date'] = format_date_with_ordinal(start_dt)
         kpis['end_date'] = format_date_with_ordinal(end_dt)
     else:
@@ -52,16 +53,16 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
         print("Warning: Missing 'Order Date' in orders data for Data Timeframe KPI.")
 
     kpis['total_customers'] = int(len(rfm_segmented_df)) # Convert to int
-    if 'segment' in rfm_segmented_df.columns:
-        # Updated to use new segment names
-        kpis['loyalty_leaders'] = int((rfm_segmented_df['segment'] == 'Loyalty Leaders').sum())
-        kpis['active_shoppers'] = int((rfm_segmented_df['segment'] == "Active Shoppers").sum())
-        kpis['new_discoverers'] = int((rfm_segmented_df['segment'] == "New Discoverers").sum())
-    else:
-        kpis['loyalty_leaders'] = 0
-        kpis['active_shoppers'] = 0
-        kpis['new_discoverers'] = 0
     
+    # Calculate Churn Rate (%)
+    if 'predicted_churn' in rfm_segmented_df.columns and not rfm_segmented_df.empty:
+        churned_customers = rfm_segmented_df[rfm_segmented_df['predicted_churn'] == 1].shape[0]
+        total_customers_for_churn = rfm_segmented_df.shape[0]
+        kpis['churn_rate'] = (churned_customers / total_customers_for_churn * 100) if total_customers_for_churn > 0 else 0.0
+    else:
+        kpis['churn_rate'] = 0.0
+        print("Warning: Missing 'predicted_churn' or empty DataFrame for churn rate KPI.")
+
     return kpis
 
 def prepare_segment_summary_data(rfm_segmented_df: pd.DataFrame) -> pd.DataFrame:
@@ -104,8 +105,13 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     Returns a dictionary where keys are segment names and values are DataFrames of top products.
     """
     print("Preparing top products by segment data...")
-    top_products_by_segment = {}
-    segments = ['Loyalty Leaders', 'Active Shoppers', 'New Discoverers']
+    # Define all possible new segments to ensure all keys are present in the output dictionary
+    all_possible_segments = [
+        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+    ]
+    top_products_by_segment = {segment: pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue']) for segment in all_possible_segments}
 
     orders_for_products = orders_df.copy() # Use full orders_df
     orders_for_products.columns = [c.strip().replace(" ", "_").lower() for c in orders_for_products.columns]
@@ -114,41 +120,39 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     
     required_product_cols = {'transaction_id', 'product_id', 'quantity', 'unitprice'}
     if orders_for_products.empty or not required_product_cols.issubset(set(orders_for_products.columns)):
-        print(f"Warning: Missing required columns for top products: {required_product_cols - set(orders_for_products.columns)} or empty orders data. Returning empty dict.")
-        for segment in segments: # Ensure all segments have an empty DataFrame
-            top_products_by_segment[segment] = pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue'])
+        print(f"Warning: Missing required columns for top products: {required_product_cols - set(orders_for_products.columns)} or empty orders data. Returning empty dict for all segments.")
+        return top_products_by_segment # Return pre-initialized empty dict for all segments
+
+    if 'segment' not in rfm_segmented_df.columns or 'User ID' not in rfm_segmented_df.columns:
+        print("Warning: RFM segmented data or User ID not available for top product calculation. Returning empty dict for all segments.")
         return top_products_by_segment
 
-    for segment in segments:
-        if 'segment' in rfm_segmented_df.columns and 'User ID' in rfm_segmented_df.columns:
-            segment_users = rfm_segmented_df[rfm_segmented_df['segment'] == segment]['User ID']
-            
-            if segment_users.empty:
-                print(f"Info: No users found for segment '{segment}'. Skipping top product calculation for this segment.")
-                top_products_by_segment[segment] = pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue'])
-                continue
+    for segment in all_possible_segments:
+        segment_users = rfm_segmented_df[rfm_segmented_df['segment'] == segment]['User ID']
+        
+        if segment_users.empty:
+            print(f"Info: No users found for segment '{segment}'. Skipping top product calculation for this segment.")
+            continue # Already initialized with empty DataFrame, so just continue
 
-            # Ensure 'User ID' in transactions_df is string for consistent merging
-            transactions_df['User ID'] = transactions_df['User ID'].astype(str)
-            segment_transaction_ids = transactions_df[transactions_df['User ID'].isin(segment_users)]['Transaction ID']
+        # Ensure 'User ID' in transactions_df is string for consistent merging
+        transactions_df['User ID'] = transactions_df['User ID'].astype(str)
+        segment_transaction_ids = transactions_df[transactions_df['User ID'].isin(segment_users)]['Transaction ID']
 
-            filtered_orders = orders_for_products[orders_for_products['transaction_id'].isin(segment_transaction_ids)].copy()
-            if not filtered_orders.empty:
-                filtered_orders['revenue'] = filtered_orders['quantity'] * filtered_orders['unitprice']
+        filtered_orders = orders_for_products[orders_for_products['transaction_id'].isin(segment_transaction_ids)].copy()
+        if not filtered_orders.empty:
+            filtered_orders['revenue'] = filtered_orders['quantity'] * filtered_orders['unitprice']
 
-                top_products = (
-                    filtered_orders.groupby('product_id')
-                    .agg(Total_Quantity=('quantity', 'sum'), Total_Revenue=('revenue', 'sum'))
-                    .sort_values(by='Total_Revenue', ascending=False)
-                    .head(5)
-                    .reset_index()
-                )
-                top_products_by_segment[segment] = top_products
-            else:
-                top_products_by_segment[segment] = pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue'])
+            top_products = (
+                filtered_orders.groupby('product_id')
+                .agg(Total_Quantity=('quantity', 'sum'), Total_Revenue=('revenue', 'sum'))
+                .sort_values(by='Total_Revenue', ascending=False)
+                .head(5)
+                .reset_index()
+            )
+            top_products_by_segment[segment] = top_products
         else:
-            print(f"Warning: RFM segmented data or User ID not available for segment {segment}.")
-            top_products_by_segment[segment] = pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue'])
+            print(f"Info: No orders found for segment '{segment}'.")
+            # Already initialized with empty DataFrame, so no need to re-assign
 
     return top_products_by_segment
 
@@ -183,8 +187,12 @@ def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> p
         var_name='CLTV Type',
         value_name='Average CLTV'
     )
-    # Updated to use new segment names
-    segment_order = ['New Discoverers', 'Active Shoppers', 'Loyalty Leaders']
+    # Define the order for the new segments for consistent plotting
+    segment_order = [
+        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+    ]
     segment_melted['segment'] = pd.Categorical(segment_melted['segment'], categories=segment_order, ordered=True)
     return segment_melted.sort_values(by='segment')
 
@@ -196,7 +204,18 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     Returns a dictionary where keys are group names and values are DataFrames for the curve.
     """
     print("Calculating realization curve data...")
-    realization_data = {}
+    # Define all possible new segments for consistent output dictionary
+    all_possible_segments = [
+        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+    ]
+    realization_data = {
+        "Overall Average": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"]),
+        "All Segments": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
+    }
+    for segment in all_possible_segments:
+        realization_data[segment] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
     
     df = orders_df.copy()
     df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
@@ -208,26 +227,21 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     required_cols = {'order_date', 'quantity', 'unitprice', 'user_id'}
     if df.empty or not required_cols.issubset(set(df.columns)):
         print(f"Warning: Required columns for realization curve not found: {required_cols - set(df.columns)} or empty orders data. Returning empty dict.")
-        # Ensure all expected keys are present, even with empty DataFrames
-        realization_data["Overall Average"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
-        realization_data["Loyalty Leaders"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
-        realization_data["Active Shoppers"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
-        realization_data["New Discoverers"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
-        realization_data["All Segments"] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
-        return realization_data
+        return realization_data # Return pre-initialized empty dict for all segments
 
     df['order_date'] = pd.to_datetime(df['order_date'])
     df['revenue'] = df['quantity'] * df['unitprice']
 
     # Use the full orders data for curve calculation
-    observation_period_end = df['order_date'].max()
+    # observation_period_end = df['order_date'].max() # Not directly used in this calculation logic
 
     segment_options = {
-        "Overall Average": rfm_segmented_df['User ID'].unique(), # Renamed from "Overall"
-        "Loyalty Leaders": rfm_segmented_df[rfm_segmented_df['segment'] == 'Loyalty Leaders']['User ID'].unique(),
-        "Active Shoppers": rfm_segmented_df[rfm_segmented_df['segment'] == 'Active Shoppers']['User ID'].unique(),
-        "New Discoverers": rfm_segmented_df[rfm_segmented_df['segment'] == 'New Discoverers']['User ID'].unique()
+        "Overall Average": rfm_segmented_df['User ID'].unique(),
     }
+    # Add the new segments to segment_options
+    for seg_name in all_possible_segments:
+        segment_options[seg_name] = rfm_segmented_df[rfm_segmented_df['segment'] == seg_name]['User ID'].unique()
+
 
     intervals = [15, 30, 45, 60, 90] # Fixed intervals for the curve itself
     
@@ -235,21 +249,19 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
 
     for option_name, selected_users in segment_options.items():
         if len(selected_users) == 0:
-            realization_data[option_name] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
-            continue
+            # Already initialized with empty DataFrame, so just continue
+            continue 
 
         # Filter the full orders data by segment users
         filtered_df_by_user = df[df['user_id'].isin(selected_users)]
         user_count = filtered_df_by_user['user_id'].nunique()
 
         if user_count == 0:
-            realization_data[option_name] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
             continue
 
         # The start date for the curve calculation should be the earliest purchase date within the filtered data for this segment
         start_date = filtered_df_by_user['order_date'].min()
         if pd.isna(start_date):
-            realization_data[option_name] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
             continue
 
         cltv_values = []
@@ -270,7 +282,7 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
         realization_data[option_name] = segment_curve_df
 
         # Prepare data for "All Segments" if it's one of the individual segments
-        if option_name in ['Loyalty Leaders', 'Active Shoppers', 'New Discoverers']:
+        if option_name in all_possible_segments: # Check against all new segments
             segment_curve_df['Segment'] = option_name # Add segment column
             all_segments_data_list.append(segment_curve_df)
 

@@ -98,43 +98,55 @@ def kpi_card(title, value, color="black"):
         </div>
     """, unsafe_allow_html=True)
 
-def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
-    st.subheader("📌 Key KPIs")
+def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
+    st.subheader("📊 Key Performance Indicators")
+
+    # Display Data Timeframe prominently but outside KPI cards
+    start_date_kpi = kpi_data.get('start_date', "N/A")
+    end_date_kpi = kpi_data.get('end_date', "N/A")
+    st.info(f"📅 Data Timeframe: {start_date_kpi} to {end_date_kpi}")
+    st.markdown("---") # Add a separator
 
     # KPIs are now based on the full dataset as processed by Kedro
     total_revenue = kpi_data.get('total_revenue', 0)
     avg_cltv = kpi_data.get('avg_cltv', 0)
     avg_aov = kpi_data.get('avg_aov', 0)
     avg_txns_per_user = kpi_data.get('avg_txns_per_user', 0)
-    start_date_kpi = kpi_data.get('start_date', "N/A") # Now directly from kpi_data, which uses full data
-    end_date_kpi = kpi_data.get('end_date', "N/A")     # Now directly from kpi_data, which uses full data
     total_customers = kpi_data.get('total_customers', 0)
-    loyalty_leaders = kpi_data.get('loyalty_leaders', 0)
-    active_shoppers = kpi_data.get('active_shoppers', 0)
-    new_discoverers = kpi_data.get('new_discoverers', 0)
+    churn_rate = kpi_data.get('churn_rate', 0.0)
 
 
     row1 = st.columns(3, gap="small")
     with row1[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
-    with row1[1]: kpi_card("💰 CLTV", f"₹{avg_cltv:,.0f}")
-    with row1[2]: kpi_card("🛒 Avg Order Value", f"₹{avg_aov:.0f}")
-    row2 = st.columns(3, gap="small")
-    with row2[0]: st.text('')
-    with row2[1]: st.text('')
-    with row2[2]: st.text('')
+    with row1[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
+    with row1[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
+    
+    # Add a small vertical space between rows
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    row3 = st.columns(3, gap="small")
-    with row3[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row3[1]: kpi_card("📆 Data Timeframe", f"{start_date_kpi} to {end_date_kpi}", color="black")
-    with row3[2]: kpi_card("👥 Total Customers", total_customers, color="black")
+    row2 = st.columns(3, gap="small")
+    with row2[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
+    with row2[1]: kpi_card("👥 Total Customers", total_customers, color="black")
+    with row2[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
+
 
     st.divider()
-    st.subheader("📈 Visual Insights")
+    st.subheader("📈 Segment Visuals") # Changed from 'Visual Insights'
 
+    # Define a color palette for the new 11 segments
     segment_colors = {
-        'Loyalty Leaders': '#1f77b4',     
-        'Active Shoppers': "#5fa2dd",   
-        'New Discoverers': "#cfe2f3"      
+        'Champions': '#1f77b4',
+        'Loyal Customers': '#2ca02c',
+        'Potential Loyalists': '#ff7f0e',
+        'Recent Customers': '#d62728',
+        'Promising': '#9467bd',
+        'Customers Needing Attention': '#8c564b',
+        'About to Sleep': '#e377c2',
+        'At Risk': '#7f7f7f',
+        "Can't Lose Them": '#bcbd22',
+        'Hibernating': '#17becf',
+        'Lost': '#a52a2a', # Darker red for 'Lost'
+        'Unclassified': '#cccccc' # Grey for unclassified
     }
 
     if not segment_counts_data.empty:
@@ -152,61 +164,82 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             fig1.update_traces(textinfo='percent+label', textposition='inside')
             st.plotly_chart(fig1, use_container_width=True)
             
-            metrics_cols = st.columns(3)
-            metrics_cols[0].metric("Loyalty Leaders*", loyalty_leaders)
-            metrics_cols[1].metric("Active Shoppers", active_shoppers)
-            metrics_cols[2].metric("New Discoverers", new_discoverers)
-            st.caption("📌 *Loyalty Leaders refers to users whose **RFM Score is in the top 33%.**")
-        
         with viz_col2:
             st.markdown("#### 📊 Segment-wise Summary Metrics")
 
-            segment_order = ["Loyalty Leaders", "Active Shoppers", "New Discoverers"]
-            colors = {"Loyalty Leaders": "#1f77b4", "Active Shoppers": "#5fa2dd", "New Discoverers": "#9dcbf3"}
+            segment_order_display = [
+                'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+            ]
+            
+            num_segments = len(segment_order_display)
+            cols_per_row = 3 # You can adjust this
+            num_rows = (num_segments + cols_per_row - 1) // cols_per_row
 
-            cards = st.columns(3)
             if not segment_summary_data.empty:
-                for i, segment in enumerate(segment_order):
-                    if segment in segment_summary_data.index:
-                        metrics = segment_summary_data.loc[segment]
-                        with cards[i]:
-                            st.markdown(f"""
-                                <div style="
-                                    background-color: {colors[segment]};
-                                    padding: 20px 15px;
-                                    border-radius: 12px;
-                                    color: white;
-                                    min-height: 250px;
-                                    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                                    font-family: 'Segoe UI', sans-serif;
-                                ">
-                                    <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                        {segment}
-                                    </h4>
-                                    <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
-                                        <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
-                                        <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
-                                        <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
-                                        <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
-                                        <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
-                                        <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
-                                    </ul>
-                                </div>
-                            """, unsafe_allow_html=True)
-                    else:
-                        with cards[i]:
-                            st.info(f"No data for {segment} segment.")
+                for i in range(num_rows):
+                    cards_row = st.columns(cols_per_row)
+                    for j in range(cols_per_row):
+                        segment_idx = i * cols_per_row + j
+                        if segment_idx < num_segments:
+                            segment = segment_order_display[segment_idx]
+                            with cards_row[j]:
+                                if segment in segment_summary_data.index:
+                                    metrics = segment_summary_data.loc[segment]
+                                    # Use a consistent color mapping for cards
+                                    card_color = segment_colors.get(segment, '#aee2fd') # Default light blue if not found
+                                    # Adjust text color for better contrast on darker cards
+                                    text_color = "white" if segment in ['Champions', 'Loyal Customers', 'Lost'] else "black"
+                                    st.markdown(f"""
+                                        <div style="
+                                            background-color: {card_color};
+                                            padding: 20px 15px;
+                                            border-radius: 12px;
+                                            color: {text_color}; /* Dynamic text color */
+                                            min-height: 250px;
+                                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                                            font-family: 'Segoe UI', sans-serif;
+                                        ">
+                                            <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                                {segment}
+                                            </h4>
+                                            <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                                <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                                <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                                <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                                <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                                <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                                <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                                            </ul>
+                                        </div>
+                                    """, unsafe_allow_html=True)
+                                else:
+                                    st.info(f"No data for {segment} segment.")
+                        else:
+                            st.empty() # Fill remaining columns in the row with empty space
             else:
                 st.warning("Segment summary data not available for segment-wise metrics.")
     else:
-        st.warning("Customer segment distribution data not available for insights.")
+        st.warning("Customer segment distribution data not available for findings.")
 
 
     # 🛍️ Top Products by Segment
     st.divider()
     st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
-        selected_segment = st.selectbox("Choose a Customer Segment", options=['Loyalty Leaders', 'Active Shoppers', 'New Discoverers'], index=0, key="top_products_segment_select")
+        # Update selectbox options to new segments
+        new_segment_options = [
+            'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
+        selected_segment = st.selectbox(
+            "Choose a Customer Segment",
+            options=new_segment_options,
+            index=0 if 'Champions' in new_segment_options else 0, # Set default to Champions if available
+            key="top_products_segment_select"
+        )
         current_segment_products = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         if not current_segment_products.empty:
@@ -240,8 +273,14 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
 
     # Table Filter
     if not predicted_cltv_display_data.empty:
+        # Update selectbox options to new segments
+        new_segment_options = [
+            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
         table_segment = st.selectbox(
-            "📋 Table Filter by Segment", ["All", "Loyalty Leaders", "Active Shoppers", "New Discoverers"],
+            "📋 Table Filter by Segment", new_segment_options,
             index=0, key="predicted_cltv_table_segment_filter"
         )
 
@@ -262,8 +301,12 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
     # 📊 New Bar Chart: Segment-Wise Avg CLTV Comparison
     st.markdown("#### 📊 Average Historical vs Predicted CLTV per Segment")
     if not cltv_comparison_data.empty:
-        # Add segment filter for the chart
-        chart_segment_options = ["All", "Loyalty Leaders", "Active Shoppers", "New Discoverers"]
+        # Update chart segment options to new segments
+        chart_segment_options = [
+            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
         selected_chart_segment = st.selectbox(
             "Filter Chart by Segment",
             options=chart_segment_options,
@@ -307,21 +350,36 @@ def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
-        segment_options_list = ['All Segments', 'Overall Average', 'Loyalty Leaders', 'Active Shoppers', 'New Discoverers']
+        # Update segment options for the realization curve
+        segment_options_list = [
+            'All Segments', 'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists',
+            'Recent Customers', 'Promising', 'Customers Needing Attention', 'About to Sleep',
+            'At Risk', "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
         segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                     options=segment_options_list,
-                                     index=0, # Set "All Segments" as default
-                                     key="realization_curve_segment_select")
+                                      options=segment_options_list,
+                                      index=0, # Set "All Segments" as default
+                                      key="realization_curve_segment_select")
         
         chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
 
         if not chart_df.empty:
             if segment_option == "All Segments":
                 color_col = 'Segment'
+                # Use the broader segment_colors for "All Segments" view
                 color_map = {
-                    'Loyalty Leaders': '#1f77b4',
-                    'Active Shoppers': '#5fa2dd',
-                    'New Discoverers': '#cfe2f3'
+                    'Champions': '#1f77b4',
+                    'Loyal Customers': '#2ca02c',
+                    'Potential Loyalists': '#ff7f0e',
+                    'Recent Customers': '#d62728',
+                    'Promising': '#9467bd',
+                    'Customers Needing Attention': '#8c564b',
+                    'About to Sleep': '#e377c2',
+                    'At Risk': '#7f7f7f',
+                    "Can't Lose Them": '#bcbd22',
+                    'Hibernating': '#17becf',
+                    'Lost': '#a52a2a',
+                    'Unclassified': '#cccccc'
                 }
             else:
                 color_col = None
@@ -373,7 +431,9 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
     if 'predicted_churn' in rfm_segmented.columns:
         churned = rfm_segmented[rfm_segmented['predicted_churn'] == 1]
         st.metric("Predicted Churned Customers", len(churned))
-        st.metric("Churn Rate (%)", f"{(len(churned) / len(rfm_segmented) * 100):.2f}")
+        # Handle division by zero if rfm_segmented is empty
+        churn_rate = (len(churned) / len(rfm_segmented) * 100) if len(rfm_segmented) > 0 else 0.0
+        st.metric("Churn Rate (%)", f"{churn_rate:.2f}")
     else:
         st.warning("Churn prediction data not available for overview metrics.")
 
@@ -381,6 +441,22 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
     st.markdown("### 📊 Churn Summary by Segment")
 
     col1, col2 = st.columns(2)
+
+    # Use the same color map as defined for the pie chart and segment cards
+    segment_colors_churn = {
+        'Champions': '#1f77b4',
+        'Loyal Customers': '#2ca02c',
+        'Potential Loyalists': '#ff7f0e',
+        'Recent Customers': '#d62728',
+        'Promising': '#9467bd',
+        'Customers Needing Attention': '#8c564b',
+        'About to Sleep': '#e377c2',
+        'At Risk': '#7f7f7f',
+        "Can't Lose Them": '#bcbd22',
+        'Hibernating': '#17becf',
+        'Lost': '#a52a2a',
+        'Unclassified': '#cccccc'
+    }
 
     with col1:
         st.markdown("#### 🔴 Avg Churn Probability")
@@ -391,11 +467,11 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
+                color_discrete_map=segment_colors_churn, # Use the new color map
                 text='Avg Churn Probability'
             )
             fig_churn.update_traces(texttemplate='%{text:.1%}', textposition='outside')
-            fig_churn.update_layout(height=350, margin=dict(t=30))
+            fig_churn.update_layout(height=450, margin=dict(t=30)) # Adjusted height for more segments
             st.plotly_chart(fig_churn, use_container_width=True)
         else:
             st.info("Average churn probability data not available.")
@@ -409,11 +485,11 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
                 y='segment',
                 orientation='h',
                 color='segment',
-                color_discrete_map={'Loyalty Leaders': '#1f77b4', 'Active Shoppers': '#5fa2dd', 'New Discoverers': '#cfe2f3'},
+                color_discrete_map=segment_colors_churn, # Use the new color map
                 text='Avg Expected Active Days'
             )
             fig_days.update_traces(texttemplate='%{text:.0f}', textposition='outside')
-            fig_days.update_layout(height=350, margin=dict(t=30))
+            fig_days.update_layout(height=450, margin=dict(t=30)) # Adjusted height for more segments
             st.plotly_chart(fig_days, use_container_width=True)
         else:
             st.info("Average expected active days data not available.")
@@ -440,8 +516,9 @@ def run_streamlit_app():
     if 'preprocessing_done' not in st.session_state:
         st.session_state['preprocessing_done'] = False
     
+    # Renamed 'Insights' to 'Findings'
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "Upload / Load Data", "Insights", "Detailed View", "Predictions", "Realization Curve", "Churn" 
+        "Upload / Load Data", "Findings", "Detailed View", "Predictions", "Realization Curve", "Churn" 
     ])
 
     with tab1:
@@ -502,7 +579,7 @@ def run_streamlit_app():
     if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
         with tab2:
-            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
+            show_findings_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
             show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'])
         with tab4:
