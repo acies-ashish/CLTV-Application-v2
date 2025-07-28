@@ -116,110 +116,141 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     churn_rate = kpi_data.get('churn_rate', 0.0)
 
 
-    row1 = st.columns(3, gap="small")
-    with row1[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
-    with row1[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
-    with row1[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
+    row1_kpis = st.columns(3, gap="small")
+    with row1_kpis[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
+    with row1_kpis[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
+    with row1_kpis[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
     
     # Add a small vertical space between rows
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    row2 = st.columns(3, gap="small")
-    with row2[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row2[1]: kpi_card("👥 Total Customers", total_customers, color="black")
-    with row2[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
+    row2_kpis = st.columns(3, gap="small")
+    with row2_kpis[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
+    with row2_kpis[1]: kpi_card("👥 Total Customers", total_customers, color="black")
+    with row2_kpis[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
 
 
     st.divider()
     st.subheader("📈 Segment Visuals") # Changed from 'Visual Insights'
 
-    # Define a color palette for the new 11 segments
+    # Define a minimalist color palette for the new 11 segments
     segment_colors = {
-        'Champions': '#1f77b4',
-        'Loyal Customers': '#2ca02c',
-        'Potential Loyalists': '#ff7f0e',
-        'Recent Customers': '#d62728',
-        'Promising': '#9467bd',
-        'Customers Needing Attention': '#8c564b',
-        'About to Sleep': '#e377c2',
-        'At Risk': '#7f7f7f',
-        "Can't Lose Them": '#bcbd22',
-        'Hibernating': '#17becf',
-        'Lost': '#a52a2a', # Darker red for 'Lost'
-        'Unclassified': '#cccccc' # Grey for unclassified
+        'Champions': '#60A5FA', # Muted Blue
+        'Loyal Customers': '#818CF8', # Muted Indigo
+        'Potential Loyalists': '#A78BFA', # Muted Violet
+        'Recent Customers': '#C4B5FD', # Lighter Violet
+        'Promising': '#D8B4FE', # Lavender
+        'Customers Needing Attention': '#F0ABFC', # Light Purple
+        'About to Sleep': '#F87171', # Light Red
+        'At Risk': '#EF4444', # Red
+        "Can't Lose Them": '#DC2626', # Darker Red
+        'Hibernating': '#FBBF24', # Amber
+        'Lost': '#F59E0B', # Darker Amber
+        'Unclassified': '#D1D5DB' # Light Grey
     }
 
     if not segment_counts_data.empty:
-        viz_col1, viz_col2 = st.columns([1, 1.2])
-        with viz_col1:
-            st.markdown("#### 🎯 Customer Segment Distribution")
-            fig1 = px.pie(
-                segment_counts_data,
-                values='Count',
-                names='Segment',
-                hole=0.45,
-                color='Segment',
-                color_discrete_map=segment_colors
-            )
-            fig1.update_traces(textinfo='percent+label', textposition='inside')
-            st.plotly_chart(fig1, use_container_width=True)
-            
-        with viz_col2:
-            st.markdown("#### 📊 Segment-wise Summary Metrics")
-
-            segment_order_display = [
-                'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-            ]
-            
-            num_segments = len(segment_order_display)
-            cols_per_row = 3 # You can adjust this
-            num_rows = (num_segments + cols_per_row - 1) // cols_per_row
-
-            if not segment_summary_data.empty:
-                for i in range(num_rows):
-                    cards_row = st.columns(cols_per_row)
-                    for j in range(cols_per_row):
-                        segment_idx = i * cols_per_row + j
-                        if segment_idx < num_segments:
-                            segment = segment_order_display[segment_idx]
-                            with cards_row[j]:
-                                if segment in segment_summary_data.index:
-                                    metrics = segment_summary_data.loc[segment]
-                                    # Use a consistent color mapping for cards
-                                    card_color = segment_colors.get(segment, '#aee2fd') # Default light blue if not found
-                                    # Adjust text color for better contrast on darker cards
-                                    text_color = "white" if segment in ['Champions', 'Loyal Customers', 'Lost'] else "black"
-                                    st.markdown(f"""
-                                        <div style="
-                                            background-color: {card_color};
-                                            padding: 20px 15px;
-                                            border-radius: 12px;
-                                            color: {text_color}; /* Dynamic text color */
-                                            min-height: 250px;
-                                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                                            font-family: 'Segoe UI', sans-serif;
-                                        ">
-                                            <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                                {segment}
-                                            </h4>
-                                            <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
-                                                <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
-                                                <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
-                                                <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
-                                                <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
-                                                <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
-                                                <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
-                                            </ul>
-                                        </div>
-                                    """, unsafe_allow_html=True)
-                                else:
-                                    st.info(f"No data for {segment} segment.")
-                        else:
-                            st.empty() # Fill remaining columns in the row with empty space
+        # Row 1: Pie Chart (full width)
+        st.markdown("#### 🎯 Customer Segment Distribution")
+        fig1 = px.pie(
+            segment_counts_data,
+            values='Count',
+            names='Segment',
+            hole=0.45,
+            color='Segment',
+            color_discrete_map=segment_colors
+        )
+        fig1.update_traces(textinfo='percent+label', textposition='inside')
+        # Increased height for the pie chart
+        fig1.update_layout(height=500) 
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        st.markdown("#### 📊 Segment-wise Summary Metrics")
+        segment_order_display = [
+            'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
+        
+        # Row 2: First 6 segment cards
+        cards_row_1 = st.columns(6) # 6 columns for 6 cards
+        for i in range(6):
+            if i < len(segment_order_display):
+                segment = segment_order_display[i]
+                with cards_row_1[i]:
+                    if segment in segment_summary_data.index:
+                        metrics = segment_summary_data.loc[segment]
+                        card_color = segment_colors.get(segment, '#aee2fd')
+                        # Adjusted text color for better contrast on the new minimalist palette
+                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black" 
+                        st.markdown(f"""
+                            <div style="
+                                background-color: {card_color};
+                                padding: 20px 15px;
+                                border-radius: 12px;
+                                color: {text_color};
+                                min-height: 250px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                                font-family: 'Segoe UI', sans-serif;
+                            ">
+                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                    {segment}
+                                </h4>
+                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                                </ul>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info(f"No data for {segment} segment.")
             else:
-                st.warning("Segment summary data not available for segment-wise metrics.")
+                st.empty() # Fill remaining columns in the row with empty space
+
+        # Row 3: Remaining segment cards (5 of them)
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True) # Space between rows of cards
+        cards_row_2 = st.columns(5) # 5 columns for 5 cards
+        for i in range(5):
+            segment_idx = 6 + i # Start from the 7th segment in the list
+            if segment_idx < len(segment_order_display):
+                segment = segment_order_display[segment_idx]
+                with cards_row_2[i]:
+                    if segment in segment_summary_data.index:
+                        metrics = segment_summary_data.loc[segment]
+                        card_color = segment_colors.get(segment, '#aee2fd')
+                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black"
+                        st.markdown(f"""
+                            <div style="
+                                background-color: {card_color};
+                                padding: 20px 15px;
+                                border-radius: 12px;
+                                color: {text_color};
+                                min-height: 250px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                                font-family: 'Segoe UI', sans-serif;
+                            ">
+                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;'>
+                                    {segment}
+                                </h4>
+                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                                </ul>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info(f"No data for {segment} segment.")
+            else:
+                st.empty() # Fill remaining columns in the row with empty space
+            
     else:
         st.warning("Customer segment distribution data not available for findings.")
 
@@ -228,6 +259,14 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     st.divider()
     st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
+        # Add radio button for selection
+        metric_choice = st.radio(
+            "View Top Products by:",
+            ("Total Quantity", "Total Revenue"),
+            key="top_products_metric_choice",
+            horizontal=True
+        )
+
         # Update selectbox options to new segments
         new_segment_options = [
             'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
@@ -243,13 +282,25 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         current_segment_products = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         if not current_segment_products.empty:
-            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}' (All Time)")
+            # Determine y-axis column and title based on choice
+            if metric_choice == "Total Quantity":
+                y_col = 'Total_Quantity'
+                y_axis_title = 'Total Quantity'
+                text_template = '%{text:.0f}'
+                chart_title = f"📦 Top 5 Products by Quantity for '{selected_segment}' (All Time)"
+            else: # Total Revenue
+                y_col = 'Total_Revenue'
+                y_axis_title = 'Total Revenue (₹)'
+                text_template = '₹%{text:,.2f}'
+                chart_title = f"💰 Top 5 Products by Revenue for '{selected_segment}' (All Time)"
+
+            st.markdown(f"#### {chart_title}")
             fig_products = px.bar(
                 current_segment_products,
                 x='product_id',
-                y='Total_Revenue',
-                text='Total_Revenue',
-                labels={'product_id': 'Product ID', 'Total_Revenue': 'Revenue'},
+                y=y_col, # Dynamic y-axis
+                text=y_col, # Dynamic text
+                labels={'product_id': 'Product ID', y_col: y_axis_title}, # Dynamic label
                 color='product_id',
                 color_discrete_sequence = [
                         '#08306b',   # Very Dark Blue
@@ -259,8 +310,8 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                         "#9dcce6"    # Pale Blue
                     ]
             )
-            fig_products.update_traces(texttemplate='₹%{text:.2f}', textposition='outside')
-            fig_products.update_layout(yaxis_title="Total Revenue", xaxis_title="Product ID")
+            fig_products.update_traces(texttemplate=text_template, textposition='outside') # Dynamic text format
+            fig_products.update_layout(yaxis_title=y_axis_title, xaxis_title="Product ID") # Dynamic axis title
             st.plotly_chart(fig_products, use_container_width=True)
         else:
             st.info(f"✅ No products found for the '{selected_segment}' segment.")
@@ -268,160 +319,186 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         st.warning("Top products by segment data not available.")
 
 def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_comparison_data: pd.DataFrame):
-    st.subheader("🔮 Predicted CLTV (Next 3 Months)")
+    # Removed the outer expander for the Predictions tab content
+    st.subheader("🔮 Predicted CLTV (Next 3 Months) Overview")
     st.caption("Forecasted Customer Lifetime Value using BG/NBD + Gamma-Gamma model.")
 
-    # Table Filter
-    if not predicted_cltv_display_data.empty:
-        # Update selectbox options to new segments
-        new_segment_options = [
-            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-        ]
-        table_segment = st.selectbox(
-            "📋 Table Filter by Segment", new_segment_options,
-            index=0, key="predicted_cltv_table_segment_filter"
-        )
+    # Nested expander for the Predicted CLTV table
+    with st.expander("📋 Predicted CLTV Table", expanded=False):
+        if not predicted_cltv_display_data.empty:
+            new_segment_options = [
+                "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+            ]
+            table_segment = st.selectbox(
+                "📋 Table Filter by Segment", new_segment_options,
+                index=0, key="predicted_cltv_table_segment_filter"
+            )
 
-        if table_segment != "All":
-            filtered_df = predicted_cltv_display_data[predicted_cltv_display_data['segment'] == table_segment].copy()
+            if table_segment != "All":
+                filtered_df = predicted_cltv_display_data[predicted_cltv_display_data['segment'] == table_segment].copy()
+            else:
+                filtered_df = predicted_cltv_display_data.copy()
+
+            st.dataframe(
+                filtered_df.style.format({'CLTV': '₹{:,.2f}', 'predicted_cltv_3m': '₹{:,.2f}'}),
+                use_container_width=True
+            )
         else:
-            filtered_df = predicted_cltv_display_data.copy()
+            st.warning("Predicted CLTV data not available.")
 
-        st.dataframe(
-            filtered_df.style.format({'CLTV': '₹{:,.2f}', 'predicted_cltv_3m': '₹{:,.2f}'}),
-            use_container_width=True
-        )
-    else:
-        st.warning("Predicted CLTV data not available.")
+    # Nested expander for the CLTV Comparison Chart
+    with st.expander("📊 CLTV Comparison Chart", expanded=False):
+        if not cltv_comparison_data.empty:
+            chart_segment_options = [
+                "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+            ]
+            selected_chart_segment = st.selectbox(
+                "Filter Chart by Segment",
+                options=chart_segment_options,
+                index=0, # Default to "All"
+                key="cltv_comparison_chart_segment_filter"
+            )
 
-    st.markdown("---")
+            filtered_chart_data = cltv_comparison_data.copy()
+            if selected_chart_segment != "All":
+                filtered_chart_data = filtered_chart_data[filtered_chart_data['segment'] == selected_chart_segment]
 
-    # 📊 New Bar Chart: Segment-Wise Avg CLTV Comparison
-    st.markdown("#### 📊 Average Historical vs Predicted CLTV per Segment")
-    if not cltv_comparison_data.empty:
-        # Update chart segment options to new segments
-        chart_segment_options = [
-            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-        ]
-        selected_chart_segment = st.selectbox(
-            "Filter Chart by Segment",
-            options=chart_segment_options,
-            index=0, # Default to "All"
-            key="cltv_comparison_chart_segment_filter"
-        )
-
-        filtered_chart_data = cltv_comparison_data.copy()
-        if selected_chart_segment != "All":
-            filtered_chart_data = filtered_chart_data[filtered_chart_data['segment'] == selected_chart_segment]
-
-        fig_bar = px.bar(
-            filtered_chart_data, # Use filtered data for the chart
-            x='segment',
-            y='Average CLTV',
-            color='CLTV Type',
-            barmode='group',
-            labels={'segment': 'Customer Segment', 'Average CLTV': 'Avg CLTV (₹)'},
-            color_discrete_map={'CLTV': "#32a2f1", 'predicted_cltv_3m': "#3fd33f"},
-            title='Average Historical vs Predicted CLTV per Segment'
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.warning("CLTV comparison data not available.")
+            fig_bar = px.bar(
+                filtered_chart_data, # Use filtered data for the chart
+                x='segment',
+                y='Average CLTV',
+                color='CLTV Type',
+                barmode='group',
+                labels={'segment': 'Customer Segment', 'Average CLTV': 'Avg CLTV (₹)'},
+                color_discrete_map={'CLTV': "#32a2f1", 'predicted_cltv_3m': "#3fd33f"},
+                title='Average Historical vs Predicted CLTV per Segment'
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("CLTV comparison data not available.")
 
 
 def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.DataFrame):
-    st.subheader("📋 Full RFM Segmented Data with CLTV")
-    if not rfm_segmented.empty:
-        st.dataframe(rfm_segmented)
-    else:
-        st.warning("RFM Segmented data not available.")
+    # Removed the outer expander for the Detailed View tab content
+    st.subheader("📋 Full RFM Segmented Data & At-Risk Customers Overview")
 
-    st.subheader("⚠️ Customers at Risk (Recency > 70 days)")
-    st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
-    if not customers_at_risk_df.empty:
-        st.dataframe(customers_at_risk_df)
-    else:
-        st.info("No customers identified as at risk, or data not available.")
+    # Nested expander for Full RFM Segmented Data
+    with st.expander("📋 Full RFM Segmented Data with CLTV", expanded=False):
+        if not rfm_segmented.empty:
+            st.dataframe(rfm_segmented)
+        else:
+            st.warning("RFM Segmented data not available.")
+
+    # Nested expander for Customers at Risk
+    with st.expander("⚠️ Customers at Risk (Recency > 70 days)", expanded=False):
+        st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
+        if not customers_at_risk_df.empty:
+            st.dataframe(customers_at_risk_df)
+        else:
+            st.info("No customers identified as at risk, or data not available.")
 
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
-        # Update segment options for the realization curve
-        segment_options_list = [
-            'All Segments', 'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists',
+        # Define all available segments for the multiselect, including "Overall Average" and "All Segments"
+        all_options = [
+            'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists',
             'Recent Customers', 'Promising', 'Customers Needing Attention', 'About to Sleep',
             'At Risk', "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
         ]
-        segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                      options=segment_options_list,
-                                      index=0, # Set "All Segments" as default
-                                      key="realization_curve_segment_select")
         
-        chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
+        # Define default selected options
+        default_selected = [
+            'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists'
+        ]
 
-        if not chart_df.empty:
-            if segment_option == "All Segments":
-                color_col = 'Segment'
-                # Use the broader segment_colors for "All Segments" view
+        # Use st.multiselect for selecting multiple groups
+        selected_options = st.multiselect(
+            "Select Customer Group(s) for CLTV Curve",
+            options=all_options,
+            default=[opt for opt in default_selected if opt in all_options], # Ensure defaults exist
+            key="realization_curve_segment_multiselect"
+        )
+        
+        if selected_options:
+            # Concatenate dataframes for all selected options
+            charts_to_display = []
+            for option in selected_options:
+                df = realization_curve_data.get(option)
+                if df is not None and not df.empty:
+                    # Ensure 'Segment' column exists for coloring, even for 'Overall Average'
+                    if 'Segment' not in df.columns:
+                        df_copy = df.copy()
+                        df_copy['Segment'] = option # Assign the option name as segment
+                        charts_to_display.append(df_copy)
+                    else:
+                        charts_to_display.append(df)
+                else:
+                    st.info(f"No data available for '{option}'.")
+
+            if charts_to_display:
+                combined_df = pd.concat(charts_to_display, ignore_index=True)
+
+                # Use the broader segment_colors for consistent coloring
                 color_map = {
-                    'Champions': '#1f77b4',
-                    'Loyal Customers': '#2ca02c',
-                    'Potential Loyalists': '#ff7f0e',
-                    'Recent Customers': '#d62728',
-                    'Promising': '#9467bd',
-                    'Customers Needing Attention': '#8c564b',
-                    'About to Sleep': '#e377c2',
-                    'At Risk': '#7f7f7f',
-                    "Can't Lose Them": '#bcbd22',
-                    'Hibernating': '#17becf',
-                    'Lost': '#a52a2a',
-                    'Unclassified': '#cccccc'
+                    'Champions': '#60A5FA',
+                    'Loyal Customers': '#818CF8',
+                    'Potential Loyalists': '#A78BFA',
+                    'Recent Customers': '#C4B5FD',
+                    'Promising': '#D8B4FE',
+                    'Customers Needing Attention': '#F0ABFC',
+                    'About to Sleep': '#F87171',
+                    'At Risk': '#EF4444',
+                    "Can't Lose Them": '#DC2626',
+                    'Hibernating': '#FBBF24',
+                    'Lost': '#F59E0B',
+                    'Unclassified': '#D1D5DB',
+                    'Overall Average': '#000000' # Black for overall average
                 }
-            else:
-                color_col = None
-                color_map = None
 
-            fig = px.line(
-                chart_df,
-                x="Period (Days)",
-                y="Avg CLTV per User",
-                text="Avg CLTV per User",
-                markers=True,
-                color=color_col,
-                color_discrete_map=color_map
-            )
-            
-            fig.update_traces(
-                texttemplate='₹%{text:.2f}',
-                textposition='top center',
-                textfont=dict(size=14, color='black'),
-                marker=dict(size=8)
-            )
-            
-            fig.update_layout(
-                title={
-                    'text': f"CLTV Realization Curve - {segment_option}",
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': dict(size=20, color='black')
-                },
-                xaxis=dict(
-                    title=dict(text="Days", font=dict(size=16, color='black')),
-                    tickfont=dict(size=14, color='black')
-                ),
-                yaxis=dict(
-                    title=dict(text="Avg CLTV", font=dict(size=16, color='black')),
-                    tickfont=dict(size=14, color='black')
-                ),
-                height=500
-            )
-            st.plotly_chart(fig, use_container_width=True)
+                fig = px.line(
+                    combined_df,
+                    x="Period (Days)",
+                    y="Avg CLTV per User",
+                    text="Avg CLTV per User",
+                    markers=True,
+                    color='Segment', # Always color by 'Segment' now
+                    color_discrete_map=color_map
+                )
+                
+                fig.update_traces(
+                    texttemplate='₹%{text:.2f}',
+                    textposition='top center',
+                    textfont=dict(size=14, color='black'),
+                    marker=dict(size=8)
+                )
+                
+                fig.update_layout(
+                    title={
+                        'text': f"CLTV Realization Curve - Selected Segments",
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'font': dict(size=20, color='black')
+                    },
+                    xaxis=dict(
+                        title=dict(text="Days", font=dict(size=16, color='black')),
+                        tickfont=dict(size=14, color='black')
+                    ),
+                    yaxis=dict(
+                        title=dict(text="Avg CLTV", font=dict(size=16, color='black')),
+                        tickfont=dict(size=14, color='black')
+                    ),
+                    height=500
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No data to display for the selected groups.")
         else:
-            st.info(f"No realization curve data available for '{segment_option}'.")
+            st.info("Please select at least one customer group to display the realization curve.")
     else:
         st.warning("Realization curve data not available.")
 
@@ -444,18 +521,18 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
     # Use the same color map as defined for the pie chart and segment cards
     segment_colors_churn = {
-        'Champions': '#1f77b4',
-        'Loyal Customers': '#2ca02c',
-        'Potential Loyalists': '#ff7f0e',
-        'Recent Customers': '#d62728',
-        'Promising': '#9467bd',
-        'Customers Needing Attention': '#8c564b',
-        'About to Sleep': '#e377c2',
-        'At Risk': '#7f7f7f',
-        "Can't Lose Them": '#bcbd22',
-        'Hibernating': '#17becf',
-        'Lost': '#a52a2a',
-        'Unclassified': '#cccccc'
+        'Champions': '#60A5FA',
+        'Loyal Customers': '#818CF8',
+        'Potential Loyalists': '#A78BFA',
+        'Recent Customers': '#C4B5FD',
+        'Promising': '#D8B4FE',
+        'Customers Needing Attention': '#F0ABFC',
+        'About to Sleep': '#F87171',
+        'At Risk': '#EF4444',
+        "Can't Lose Them": '#DC2626',
+        'Hibernating': '#FBBF24',
+        'Lost': '#F59E0B',
+        'Unclassified': '#D1D5DB'
     }
 
     with col1:
@@ -497,14 +574,14 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
     st.divider()
     st.markdown("### 🔍 All Customers at a Glance")
 
-    if st.toggle("🕵️ Detailed View of Churn Analysis"):
-        if not churn_detailed_view_data.empty:
-            st.dataframe(
-                churn_detailed_view_data.style.format({'predicted_churn_prob': '{:.2%}', 'predicted_cltv_3m': '₹{:,.2f}'}),
-                use_container_width=True
-            )
-        else:
-            st.info("Detailed churn analysis data not available.")
+    # Removed st.toggle, displaying content directly
+    if not churn_detailed_view_data.empty:
+        st.dataframe(
+            churn_detailed_view_data.style.format({'predicted_churn_prob': '{:.2%}', 'predicted_cltv_3m': '₹{:,.2f}'}),
+            use_container_width=True
+        )
+    else:
+        st.info("Detailed churn analysis data not available.")
 
 
 def run_streamlit_app():
