@@ -7,7 +7,7 @@ from pathlib import Path
 import shutil # Needed for copying sample files to the fixed input location
 import plotly.express as px # Keep plotly for chart rendering
 import json # For loading JSON datasets
-from typing import Dict # <--- ADDED THIS IMPORT
+from typing import Dict
 
 # Import Kedro specific components
 from kedro.framework.session import KedroSession
@@ -50,7 +50,8 @@ def run_kedro_main_pipeline_and_load_ui_data():
             session.run(pipeline_name="preprocessing_pipeline") 
             
             ui_data = {}
-            ui_data['rfm_segmented'] = context.catalog.load("final_rfm_cltv_churn_data")
+            # The rfm_segmented key now loads the combined final customer data
+            ui_data['rfm_segmented'] = context.catalog.load("final_rfm_cltv_churn_data") 
             ui_data['kpi_data'] = context.catalog.load("kpi_data_for_ui")
             ui_data['segment_summary'] = context.catalog.load("segment_summary_data_for_ui")
             ui_data['segment_counts'] = context.catalog.load("segment_counts_data_for_ui")
@@ -62,6 +63,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['active_days_summary'] = context.catalog.load("active_days_summary_data_for_ui")
             ui_data['churn_detailed_view'] = context.catalog.load("churn_detailed_view_data_for_ui")
             ui_data['customers_at_risk'] = context.catalog.load("customers_at_risk_df")
+            # Also load the original orders and transactions data if needed for UI functions that directly use them
             ui_data['df_orders_merged'] = context.catalog.load("orders_merged_with_user_id")
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
 
