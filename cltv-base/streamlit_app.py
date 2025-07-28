@@ -98,43 +98,42 @@ def kpi_card(title, value, color="black"):
         </div>
     """, unsafe_allow_html=True)
 
-def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
-    st.subheader("📌 Key KPIs")
+def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
+    st.subheader("📊 Key Performance Indicators")
+
+    # Display Data Timeframe prominently but outside KPI cards
+    start_date_kpi = kpi_data.get('start_date', "N/A")
+    end_date_kpi = kpi_data.get('end_date', "N/A")
+    st.info(f"📅 Data Timeframe: {start_date_kpi} to {end_date_kpi}")
+    st.markdown("---") # Add a separator
 
     # KPIs are now based on the full dataset as processed by Kedro
     total_revenue = kpi_data.get('total_revenue', 0)
     avg_cltv = kpi_data.get('avg_cltv', 0)
     avg_aov = kpi_data.get('avg_aov', 0)
     avg_txns_per_user = kpi_data.get('avg_txns_per_user', 0)
-    start_date_kpi = kpi_data.get('start_date', "N/A") # Now directly from kpi_data, which uses full data
-    end_date_kpi = kpi_data.get('end_date', "N/A")    # Now directly from kpi_data, which uses full data
     total_customers = kpi_data.get('total_customers', 0)
-    
-    # Removed specific segment KPIs as segmentation is now more granular
-    # loyalty_leaders = kpi_data.get('loyalty_leaders', 0)
-    # active_shoppers = kpi_data.get('active_shoppers', 0)
-    # new_discoverers = kpi_data.get('new_discoverers', 0)
+    churn_rate = kpi_data.get('churn_rate', 0.0)
 
 
     row1 = st.columns(3, gap="small")
     with row1[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
-    with row1[1]: kpi_card("💰 CLTV", f"₹{avg_cltv:,.0f}")
-    with row1[2]: kpi_card("🛒 Avg Order Value", f"₹{avg_aov:.0f}")
-    row2 = st.columns(3, gap="small")
-    with row2[0]: st.text('')
-    with row2[1]: st.text('')
-    with row2[2]: st.text('')
+    with row1[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
+    with row1[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
+    
+    # Add a small vertical space between rows
+    st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    row3 = st.columns(3, gap="small")
-    with row3[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row3[1]: kpi_card("📆 Data Timeframe", f"{start_date_kpi} to {end_date_kpi}", color="black")
-    with row3[2]: kpi_card("👥 Total Customers", total_customers, color="black")
+    row2 = st.columns(3, gap="small")
+    with row2[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
+    with row2[1]: kpi_card("👥 Total Customers", total_customers, color="black")
+    with row2[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
+
 
     st.divider()
-    st.subheader("📈 Visual Insights")
+    st.subheader("📈 Segment Visuals") # Changed from 'Visual Insights'
 
     # Define a color palette for the new 11 segments
-    # Using a broader palette or a sequential one if segments have a natural order
     segment_colors = {
         'Champions': '#1f77b4',
         'Loyal Customers': '#2ca02c',
@@ -165,26 +164,15 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             fig1.update_traces(textinfo='percent+label', textposition='inside')
             st.plotly_chart(fig1, use_container_width=True)
             
-            # Removed specific segment metrics here as there are too many now
-            # metrics_cols = st.columns(3)
-            # metrics_cols[0].metric("Loyalty Leaders*", loyalty_leaders)
-            # metrics_cols[1].metric("Active Shoppers", active_shoppers)
-            # metrics_cols[2].metric("New Discoverers", new_discoverers)
-            # st.caption("📌 *Loyalty Leaders refers to users whose **RFM Score is in the top 33%.**")
-        
         with viz_col2:
             st.markdown("#### 📊 Segment-wise Summary Metrics")
 
-            # Dynamically get segment order from segment_summary_data if available, otherwise use a default
-            # Or, for consistency, define a fixed order for display
             segment_order_display = [
                 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
                 'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
                 "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
             ]
             
-            # Create a list of columns for each segment card
-            # Adjust the number of columns based on how many segments you want per row
             num_segments = len(segment_order_display)
             cols_per_row = 3 # You can adjust this
             num_rows = (num_segments + cols_per_row - 1) // cols_per_row
@@ -201,12 +189,14 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                                     metrics = segment_summary_data.loc[segment]
                                     # Use a consistent color mapping for cards
                                     card_color = segment_colors.get(segment, '#aee2fd') # Default light blue if not found
+                                    # Adjust text color for better contrast on darker cards
+                                    text_color = "white" if segment in ['Champions', 'Loyal Customers', 'Lost'] else "black"
                                     st.markdown(f"""
                                         <div style="
                                             background-color: {card_color};
                                             padding: 20px 15px;
                                             border-radius: 12px;
-                                            color: white; /* Text color for cards */
+                                            color: {text_color}; /* Dynamic text color */
                                             min-height: 250px;
                                             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
                                             font-family: 'Segoe UI', sans-serif;
@@ -231,7 +221,7 @@ def show_insights_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             else:
                 st.warning("Segment summary data not available for segment-wise metrics.")
     else:
-        st.warning("Customer segment distribution data not available for insights.")
+        st.warning("Customer segment distribution data not available for findings.")
 
 
     # 🛍️ Top Products by Segment
@@ -526,8 +516,9 @@ def run_streamlit_app():
     if 'preprocessing_done' not in st.session_state:
         st.session_state['preprocessing_done'] = False
     
+    # Renamed 'Insights' to 'Findings'
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-        "Upload / Load Data", "Insights", "Detailed View", "Predictions", "Realization Curve", "Churn" 
+        "Upload / Load Data", "Findings", "Detailed View", "Predictions", "Realization Curve", "Churn" 
     ])
 
     with tab1:
@@ -588,7 +579,7 @@ def run_streamlit_app():
     if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
         with tab2:
-            show_insights_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
+            show_findings_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
             show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'])
         with tab4:

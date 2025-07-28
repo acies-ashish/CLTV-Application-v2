@@ -21,7 +21,7 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=prepare_kpi_data,
-                inputs=["orders_merged_with_user_id", "historical_cltv_customers", "transactions_typed"],
+                inputs=["orders_merged_with_user_id", "final_rfm_cltv_churn_data", "transactions_typed"], # Changed input from historical_cltv_customers
                 outputs="kpi_data_for_ui",
                 name="prepare_kpi_data",
             ),
@@ -76,4 +76,3 @@ def create_pipeline(**kwargs) -> Pipeline:
         ],
         tags="ui_data_preparation" # Optional: Add a tag for this pipeline
     )
-

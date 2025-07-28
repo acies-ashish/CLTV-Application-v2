@@ -42,8 +42,9 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
 
     # Data Timeframe (calculated from the full orders_df)
     if 'Order Date' in orders_df.columns:
-        start_dt = pd.to_datetime(orders_df['Order Date']).min()
-        end_dt = pd.to_datetime(orders_df['Order Date']).max()
+        # Added dayfirst=True to pd.to_datetime to silence the warning
+        start_dt = pd.to_datetime(orders_df['Order Date'], dayfirst=True).min()
+        end_dt = pd.to_datetime(orders_df['Order Date'], dayfirst=True).max()
         kpis['start_date'] = format_date_with_ordinal(start_dt)
         kpis['end_date'] = format_date_with_ordinal(end_dt)
     else:
@@ -52,8 +53,16 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
         print("Warning: Missing 'Order Date' in orders data for Data Timeframe KPI.")
 
     kpis['total_customers'] = int(len(rfm_segmented_df)) # Convert to int
-    # Removed specific segment KPIs as segmentation is now more granular and dynamic
     
+    # Calculate Churn Rate (%)
+    if 'predicted_churn' in rfm_segmented_df.columns and not rfm_segmented_df.empty:
+        churned_customers = rfm_segmented_df[rfm_segmented_df['predicted_churn'] == 1].shape[0]
+        total_customers_for_churn = rfm_segmented_df.shape[0]
+        kpis['churn_rate'] = (churned_customers / total_customers_for_churn * 100) if total_customers_for_churn > 0 else 0.0
+    else:
+        kpis['churn_rate'] = 0.0
+        print("Warning: Missing 'predicted_churn' or empty DataFrame for churn rate KPI.")
+
     return kpis
 
 def prepare_segment_summary_data(rfm_segmented_df: pd.DataFrame) -> pd.DataFrame:
