@@ -28,7 +28,8 @@ def create_pipeline(**kwargs) -> Pipeline:
             "historical_cltv_customers",          # From customer_features_pipeline
             "predicted_churn_probabilities",      # From churn_modeling_pipeline
             "predicted_churn_labels",             # From churn_modeling_pipeline
-            "cox_predicted_active_days"           # From churn_modeling_pipeline
+            "cox_predicted_active_days",          # From churn_modeling_pipeline
+            "predicted_cltv_df"                   # Added this input
         ],
         outputs="final_rfm_cltv_churn_data",
         name="combine_final_customer_data_for_ui",
