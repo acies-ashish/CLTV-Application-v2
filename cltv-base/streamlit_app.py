@@ -116,110 +116,141 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     churn_rate = kpi_data.get('churn_rate', 0.0)
 
 
-    row1 = st.columns(3, gap="small")
-    with row1[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
-    with row1[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
-    with row1[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
+    row1_kpis = st.columns(3, gap="small")
+    with row1_kpis[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
+    with row1_kpis[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
+    with row1_kpis[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
     
     # Add a small vertical space between rows
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
-    row2 = st.columns(3, gap="small")
-    with row2[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row2[1]: kpi_card("👥 Total Customers", total_customers, color="black")
-    with row2[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
+    row2_kpis = st.columns(3, gap="small")
+    with row2_kpis[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
+    with row2_kpis[1]: kpi_card("👥 Total Customers", total_customers, color="black")
+    with row2_kpis[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
 
 
     st.divider()
     st.subheader("📈 Segment Visuals") # Changed from 'Visual Insights'
 
-    # Define a color palette for the new 11 segments
+    # Define a minimalist color palette for the new 11 segments
     segment_colors = {
-        'Champions': '#1f77b4',
-        'Loyal Customers': '#2ca02c',
-        'Potential Loyalists': '#ff7f0e',
-        'Recent Customers': '#d62728',
-        'Promising': '#9467bd',
-        'Customers Needing Attention': '#8c564b',
-        'About to Sleep': '#e377c2',
-        'At Risk': '#7f7f7f',
-        "Can't Lose Them": '#bcbd22',
-        'Hibernating': '#17becf',
-        'Lost': '#a52a2a', # Darker red for 'Lost'
-        'Unclassified': '#cccccc' # Grey for unclassified
+        'Champions': '#60A5FA', # Muted Blue
+        'Loyal Customers': '#818CF8', # Muted Indigo
+        'Potential Loyalists': '#A78BFA', # Muted Violet
+        'Recent Customers': '#C4B5FD', # Lighter Violet
+        'Promising': '#D8B4FE', # Lavender
+        'Customers Needing Attention': '#F0ABFC', # Light Purple
+        'About to Sleep': '#F87171', # Light Red
+        'At Risk': '#EF4444', # Red
+        "Can't Lose Them": '#DC2626', # Darker Red
+        'Hibernating': '#FBBF24', # Amber
+        'Lost': '#F59E0B', # Darker Amber
+        'Unclassified': '#D1D5DB' # Light Grey
     }
 
     if not segment_counts_data.empty:
-        viz_col1, viz_col2 = st.columns([1, 1.2])
-        with viz_col1:
-            st.markdown("#### 🎯 Customer Segment Distribution")
-            fig1 = px.pie(
-                segment_counts_data,
-                values='Count',
-                names='Segment',
-                hole=0.45,
-                color='Segment',
-                color_discrete_map=segment_colors
-            )
-            fig1.update_traces(textinfo='percent+label', textposition='inside')
-            st.plotly_chart(fig1, use_container_width=True)
-            
-        with viz_col2:
-            st.markdown("#### 📊 Segment-wise Summary Metrics")
-
-            segment_order_display = [
-                'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-            ]
-            
-            num_segments = len(segment_order_display)
-            cols_per_row = 3 # You can adjust this
-            num_rows = (num_segments + cols_per_row - 1) // cols_per_row
-
-            if not segment_summary_data.empty:
-                for i in range(num_rows):
-                    cards_row = st.columns(cols_per_row)
-                    for j in range(cols_per_row):
-                        segment_idx = i * cols_per_row + j
-                        if segment_idx < num_segments:
-                            segment = segment_order_display[segment_idx]
-                            with cards_row[j]:
-                                if segment in segment_summary_data.index:
-                                    metrics = segment_summary_data.loc[segment]
-                                    # Use a consistent color mapping for cards
-                                    card_color = segment_colors.get(segment, '#aee2fd') # Default light blue if not found
-                                    # Adjust text color for better contrast on darker cards
-                                    text_color = "white" if segment in ['Champions', 'Loyal Customers', 'Lost'] else "black"
-                                    st.markdown(f"""
-                                        <div style="
-                                            background-color: {card_color};
-                                            padding: 20px 15px;
-                                            border-radius: 12px;
-                                            color: {text_color}; /* Dynamic text color */
-                                            min-height: 250px;
-                                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                                            font-family: 'Segoe UI', sans-serif;
-                                        ">
-                                            <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                                {segment}
-                                            </h4>
-                                            <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
-                                                <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
-                                                <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
-                                                <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
-                                                <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
-                                                <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
-                                                <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
-                                            </ul>
-                                        </div>
-                                    """, unsafe_allow_html=True)
-                                else:
-                                    st.info(f"No data for {segment} segment.")
-                        else:
-                            st.empty() # Fill remaining columns in the row with empty space
+        # Row 1: Pie Chart (full width)
+        st.markdown("#### 🎯 Customer Segment Distribution")
+        fig1 = px.pie(
+            segment_counts_data,
+            values='Count',
+            names='Segment',
+            hole=0.45,
+            color='Segment',
+            color_discrete_map=segment_colors
+        )
+        fig1.update_traces(textinfo='percent+label', textposition='inside')
+        # Increased height for the pie chart
+        fig1.update_layout(height=500) 
+        st.plotly_chart(fig1, use_container_width=True)
+        
+        st.markdown("#### 📊 Segment-wise Summary Metrics")
+        segment_order_display = [
+            'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+        ]
+        
+        # Row 2: First 6 segment cards
+        cards_row_1 = st.columns(6) # 6 columns for 6 cards
+        for i in range(6):
+            if i < len(segment_order_display):
+                segment = segment_order_display[i]
+                with cards_row_1[i]:
+                    if segment in segment_summary_data.index:
+                        metrics = segment_summary_data.loc[segment]
+                        card_color = segment_colors.get(segment, '#aee2fd')
+                        # Adjusted text color for better contrast on the new minimalist palette
+                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black" 
+                        st.markdown(f"""
+                            <div style="
+                                background-color: {card_color};
+                                padding: 20px 15px;
+                                border-radius: 12px;
+                                color: {text_color};
+                                min-height: 250px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                                font-family: 'Segoe UI', sans-serif;
+                            ">
+                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                    {segment}
+                                </h4>
+                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                                </ul>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info(f"No data for {segment} segment.")
             else:
-                st.warning("Segment summary data not available for segment-wise metrics.")
+                st.empty() # Fill remaining columns in the row with empty space
+
+        # Row 3: Remaining segment cards (5 of them)
+        st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True) # Space between rows of cards
+        cards_row_2 = st.columns(5) # 5 columns for 5 cards
+        for i in range(5):
+            segment_idx = 6 + i # Start from the 7th segment in the list
+            if segment_idx < len(segment_order_display):
+                segment = segment_order_display[segment_idx]
+                with cards_row_2[i]:
+                    if segment in segment_summary_data.index:
+                        metrics = segment_summary_data.loc[segment]
+                        card_color = segment_colors.get(segment, '#aee2fd')
+                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black"
+                        st.markdown(f"""
+                            <div style="
+                                background-color: {card_color};
+                                padding: 20px 15px;
+                                border-radius: 12px;
+                                color: {text_color};
+                                min-height: 250px;
+                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                                font-family: 'Segoe UI', sans-serif;
+                            ">
+                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                    {segment}
+                                </h4>
+                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                                </ul>
+                            </div>
+                        """, unsafe_allow_html=True)
+                    else:
+                        st.info(f"No data for {segment} segment.")
+            else:
+                st.empty() # Fill remaining columns in the row with empty space
+            
     else:
         st.warning("Customer segment distribution data not available for findings.")
 
@@ -368,18 +399,18 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
                 color_col = 'Segment'
                 # Use the broader segment_colors for "All Segments" view
                 color_map = {
-                    'Champions': '#1f77b4',
-                    'Loyal Customers': '#2ca02c',
-                    'Potential Loyalists': '#ff7f0e',
-                    'Recent Customers': '#d62728',
-                    'Promising': '#9467bd',
-                    'Customers Needing Attention': '#8c564b',
-                    'About to Sleep': '#e377c2',
-                    'At Risk': '#7f7f7f',
-                    "Can't Lose Them": '#bcbd22',
-                    'Hibernating': '#17becf',
-                    'Lost': '#a52a2a',
-                    'Unclassified': '#cccccc'
+                    'Champions': '#60A5FA',
+                    'Loyal Customers': '#818CF8',
+                    'Potential Loyalists': '#A78BFA',
+                    'Recent Customers': '#C4B5FD',
+                    'Promising': '#D8B4FE',
+                    'Customers Needing Attention': '#F0ABFC',
+                    'About to Sleep': '#F87171',
+                    'At Risk': '#EF4444',
+                    "Can't Lose Them": '#DC2626',
+                    'Hibernating': '#FBBF24',
+                    'Lost': '#F59E0B',
+                    'Unclassified': '#D1D5DB'
                 }
             else:
                 color_col = None
@@ -444,18 +475,18 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
     # Use the same color map as defined for the pie chart and segment cards
     segment_colors_churn = {
-        'Champions': '#1f77b4',
-        'Loyal Customers': '#2ca02c',
-        'Potential Loyalists': '#ff7f0e',
-        'Recent Customers': '#d62728',
-        'Promising': '#9467bd',
-        'Customers Needing Attention': '#8c564b',
-        'About to Sleep': '#e377c2',
-        'At Risk': '#7f7f7f',
-        "Can't Lose Them": '#bcbd22',
-        'Hibernating': '#17becf',
-        'Lost': '#a52a2a',
-        'Unclassified': '#cccccc'
+        'Champions': '#60A5FA',
+        'Loyal Customers': '#818CF8',
+        'Potential Loyalists': '#A78BFA',
+        'Recent Customers': '#C4B5FD',
+        'Promising': '#D8B4FE',
+        'Customers Needing Attention': '#F0ABFC',
+        'About to Sleep': '#F87171',
+        'At Risk': '#EF4444',
+        "Can't Lose Them": '#DC2626',
+        'Hibernating': '#FBBF24',
+        'Lost': '#F59E0B',
+        'Unclassified': '#D1D5DB'
     }
 
     with col1:
