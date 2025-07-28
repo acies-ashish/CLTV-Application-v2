@@ -100,9 +100,10 @@ def prepare_segment_counts_data(rfm_segmented_df: pd.DataFrame) -> pd.DataFrame:
 
 def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
     """
-    Calculates top products by revenue for each customer segment.
+    Calculates top products by quantity and revenue for each customer segment.
     This node processes the full dataset.
-    Returns a dictionary where keys are segment names and values are DataFrames of top products.
+    Returns a dictionary where keys are segment names and values are DataFrames of top products,
+    containing both Total_Quantity and Total_Revenue.
     """
     print("Preparing top products by segment data...")
     # Define all possible new segments to ensure all keys are present in the output dictionary
@@ -111,6 +112,7 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
         'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
         "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
     ]
+    # Initialize with both columns
     top_products_by_segment = {segment: pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue']) for segment in all_possible_segments}
 
     orders_for_products = orders_df.copy() # Use full orders_df
@@ -118,7 +120,8 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     if 'unit_price' in orders_for_products.columns:
         orders_for_products.rename(columns={'unit_price': 'unitprice'}, inplace=True)
     
-    required_product_cols = {'transaction_id', 'product_id', 'quantity', 'unitprice'}
+    # Ensure both quantity and unitprice are available for revenue calculation
+    required_product_cols = {'transaction_id', 'product_id', 'quantity', 'unitprice'} 
     if orders_for_products.empty or not required_product_cols.issubset(set(orders_for_products.columns)):
         print(f"Warning: Missing required columns for top products: {required_product_cols - set(orders_for_products.columns)} or empty orders data. Returning empty dict for all segments.")
         return top_products_by_segment # Return pre-initialized empty dict for all segments
@@ -140,12 +143,12 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
 
         filtered_orders = orders_for_products[orders_for_products['transaction_id'].isin(segment_transaction_ids)].copy()
         if not filtered_orders.empty:
-            filtered_orders['revenue'] = filtered_orders['quantity'] * filtered_orders['unitprice']
+            filtered_orders['revenue'] = filtered_orders['quantity'] * filtered_orders['unitprice'] # Re-added revenue calculation
 
             top_products = (
                 filtered_orders.groupby('product_id')
-                .agg(Total_Quantity=('quantity', 'sum'), Total_Revenue=('revenue', 'sum'))
-                .sort_values(by='Total_Revenue', ascending=False)
+                .agg(Total_Quantity=('quantity', 'sum'), Total_Revenue=('revenue', 'sum')) # Aggregate both
+                .sort_values(by='Total_Quantity', ascending=False) # Default sort by quantity
                 .head(5)
                 .reset_index()
             )
