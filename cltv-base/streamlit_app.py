@@ -233,7 +233,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                                 box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
                                 font-family: 'Segoe UI', sans-serif;
                             ">
-                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;'>
                                     {segment}
                                 </h4>
                                 <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
@@ -259,6 +259,14 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     st.divider()
     st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
+        # Add radio button for selection
+        metric_choice = st.radio(
+            "View Top Products by:",
+            ("Total Quantity", "Total Revenue"),
+            key="top_products_metric_choice",
+            horizontal=True
+        )
+
         # Update selectbox options to new segments
         new_segment_options = [
             'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
@@ -274,13 +282,25 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         current_segment_products = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         if not current_segment_products.empty:
-            st.markdown(f"#### 📦 Top 5 Products by Revenue for '{selected_segment}' (All Time)")
+            # Determine y-axis column and title based on choice
+            if metric_choice == "Total Quantity":
+                y_col = 'Total_Quantity'
+                y_axis_title = 'Total Quantity'
+                text_template = '%{text:.0f}'
+                chart_title = f"📦 Top 5 Products by Quantity for '{selected_segment}' (All Time)"
+            else: # Total Revenue
+                y_col = 'Total_Revenue'
+                y_axis_title = 'Total Revenue (₹)'
+                text_template = '₹%{text:,.2f}'
+                chart_title = f"💰 Top 5 Products by Revenue for '{selected_segment}' (All Time)"
+
+            st.markdown(f"#### {chart_title}")
             fig_products = px.bar(
                 current_segment_products,
                 x='product_id',
-                y='Total_Revenue',
-                text='Total_Revenue',
-                labels={'product_id': 'Product ID', 'Total_Revenue': 'Revenue'},
+                y=y_col, # Dynamic y-axis
+                text=y_col, # Dynamic text
+                labels={'product_id': 'Product ID', y_col: y_axis_title}, # Dynamic label
                 color='product_id',
                 color_discrete_sequence = [
                         '#08306b',   # Very Dark Blue
@@ -290,8 +310,8 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                         "#9dcce6"    # Pale Blue
                     ]
             )
-            fig_products.update_traces(texttemplate='₹%{text:.2f}', textposition='outside')
-            fig_products.update_layout(yaxis_title="Total Revenue", xaxis_title="Product ID")
+            fig_products.update_traces(texttemplate=text_template, textposition='outside') # Dynamic text format
+            fig_products.update_layout(yaxis_title=y_axis_title, xaxis_title="Product ID") # Dynamic axis title
             st.plotly_chart(fig_products, use_container_width=True)
         else:
             st.info(f"✅ No products found for the '{selected_segment}' segment.")
@@ -299,105 +319,131 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         st.warning("Top products by segment data not available.")
 
 def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_comparison_data: pd.DataFrame):
-    st.subheader("🔮 Predicted CLTV (Next 3 Months)")
+    # Removed the outer expander for the Predictions tab content
+    st.subheader("🔮 Predicted CLTV (Next 3 Months) Overview")
     st.caption("Forecasted Customer Lifetime Value using BG/NBD + Gamma-Gamma model.")
 
-    # Table Filter
-    if not predicted_cltv_display_data.empty:
-        # Update selectbox options to new segments
-        new_segment_options = [
-            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-        ]
-        table_segment = st.selectbox(
-            "📋 Table Filter by Segment", new_segment_options,
-            index=0, key="predicted_cltv_table_segment_filter"
-        )
+    # Nested expander for the Predicted CLTV table
+    with st.expander("📋 Predicted CLTV Table", expanded=False):
+        if not predicted_cltv_display_data.empty:
+            new_segment_options = [
+                "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+            ]
+            table_segment = st.selectbox(
+                "📋 Table Filter by Segment", new_segment_options,
+                index=0, key="predicted_cltv_table_segment_filter"
+            )
 
-        if table_segment != "All":
-            filtered_df = predicted_cltv_display_data[predicted_cltv_display_data['segment'] == table_segment].copy()
+            if table_segment != "All":
+                filtered_df = predicted_cltv_display_data[predicted_cltv_display_data['segment'] == table_segment].copy()
+            else:
+                filtered_df = predicted_cltv_display_data.copy()
+
+            st.dataframe(
+                filtered_df.style.format({'CLTV': '₹{:,.2f}', 'predicted_cltv_3m': '₹{:,.2f}'}),
+                use_container_width=True
+            )
         else:
-            filtered_df = predicted_cltv_display_data.copy()
+            st.warning("Predicted CLTV data not available.")
 
-        st.dataframe(
-            filtered_df.style.format({'CLTV': '₹{:,.2f}', 'predicted_cltv_3m': '₹{:,.2f}'}),
-            use_container_width=True
-        )
-    else:
-        st.warning("Predicted CLTV data not available.")
+    # Nested expander for the CLTV Comparison Chart
+    with st.expander("📊 CLTV Comparison Chart", expanded=False):
+        if not cltv_comparison_data.empty:
+            chart_segment_options = [
+                "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+                'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+                "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+            ]
+            selected_chart_segment = st.selectbox(
+                "Filter Chart by Segment",
+                options=chart_segment_options,
+                index=0, # Default to "All"
+                key="cltv_comparison_chart_segment_filter"
+            )
 
-    st.markdown("---")
+            filtered_chart_data = cltv_comparison_data.copy()
+            if selected_chart_segment != "All":
+                filtered_chart_data = filtered_chart_data[filtered_chart_data['segment'] == selected_chart_segment]
 
-    # 📊 New Bar Chart: Segment-Wise Avg CLTV Comparison
-    st.markdown("#### 📊 Average Historical vs Predicted CLTV per Segment")
-    if not cltv_comparison_data.empty:
-        # Update chart segment options to new segments
-        chart_segment_options = [
-            "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-        ]
-        selected_chart_segment = st.selectbox(
-            "Filter Chart by Segment",
-            options=chart_segment_options,
-            index=0, # Default to "All"
-            key="cltv_comparison_chart_segment_filter"
-        )
-
-        filtered_chart_data = cltv_comparison_data.copy()
-        if selected_chart_segment != "All":
-            filtered_chart_data = filtered_chart_data[filtered_chart_data['segment'] == selected_chart_segment]
-
-        fig_bar = px.bar(
-            filtered_chart_data, # Use filtered data for the chart
-            x='segment',
-            y='Average CLTV',
-            color='CLTV Type',
-            barmode='group',
-            labels={'segment': 'Customer Segment', 'Average CLTV': 'Avg CLTV (₹)'},
-            color_discrete_map={'CLTV': "#32a2f1", 'predicted_cltv_3m': "#3fd33f"},
-            title='Average Historical vs Predicted CLTV per Segment'
-        )
-        st.plotly_chart(fig_bar, use_container_width=True)
-    else:
-        st.warning("CLTV comparison data not available.")
+            fig_bar = px.bar(
+                filtered_chart_data, # Use filtered data for the chart
+                x='segment',
+                y='Average CLTV',
+                color='CLTV Type',
+                barmode='group',
+                labels={'segment': 'Customer Segment', 'Average CLTV': 'Avg CLTV (₹)'},
+                color_discrete_map={'CLTV': "#32a2f1", 'predicted_cltv_3m': "#3fd33f"},
+                title='Average Historical vs Predicted CLTV per Segment'
+            )
+            st.plotly_chart(fig_bar, use_container_width=True)
+        else:
+            st.warning("CLTV comparison data not available.")
 
 
 def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.DataFrame):
-    st.subheader("📋 Full RFM Segmented Data with CLTV")
-    if not rfm_segmented.empty:
-        st.dataframe(rfm_segmented)
-    else:
-        st.warning("RFM Segmented data not available.")
+    # Removed the outer expander for the Detailed View tab content
+    st.subheader("📋 Full RFM Segmented Data & At-Risk Customers Overview")
 
-    st.subheader("⚠️ Customers at Risk (Recency > 70 days)")
-    st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
-    if not customers_at_risk_df.empty:
-        st.dataframe(customers_at_risk_df)
-    else:
-        st.info("No customers identified as at risk, or data not available.")
+    # Nested expander for Full RFM Segmented Data
+    with st.expander("📋 Full RFM Segmented Data with CLTV", expanded=False):
+        if not rfm_segmented.empty:
+            st.dataframe(rfm_segmented)
+        else:
+            st.warning("RFM Segmented data not available.")
+
+    # Nested expander for Customers at Risk
+    with st.expander("⚠️ Customers at Risk (Recency > 70 days)", expanded=False):
+        st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
+        if not customers_at_risk_df.empty:
+            st.dataframe(customers_at_risk_df)
+        else:
+            st.info("No customers identified as at risk, or data not available.")
 
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("📈 Realization Curve of CLTV Over Time")
     if realization_curve_data:
-        # Update segment options for the realization curve
-        segment_options_list = [
-            'All Segments', 'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists',
+        # Define all available segments for the multiselect, including "Overall Average" and "All Segments"
+        all_options = [
+            'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists',
             'Recent Customers', 'Promising', 'Customers Needing Attention', 'About to Sleep',
             'At Risk', "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
         ]
-        segment_option = st.selectbox("Select Customer Group for CLTV Curve",
-                                      options=segment_options_list,
-                                      index=0, # Set "All Segments" as default
-                                      key="realization_curve_segment_select")
         
-        chart_df = realization_curve_data.get(segment_option, pd.DataFrame())
+        # Define default selected options
+        default_selected = [
+            'Overall Average', 'Champions', 'Loyal Customers', 'Potential Loyalists'
+        ]
 
-        if not chart_df.empty:
-            if segment_option == "All Segments":
-                color_col = 'Segment'
-                # Use the broader segment_colors for "All Segments" view
+        # Use st.multiselect for selecting multiple groups
+        selected_options = st.multiselect(
+            "Select Customer Group(s) for CLTV Curve",
+            options=all_options,
+            default=[opt for opt in default_selected if opt in all_options], # Ensure defaults exist
+            key="realization_curve_segment_multiselect"
+        )
+        
+        if selected_options:
+            # Concatenate dataframes for all selected options
+            charts_to_display = []
+            for option in selected_options:
+                df = realization_curve_data.get(option)
+                if df is not None and not df.empty:
+                    # Ensure 'Segment' column exists for coloring, even for 'Overall Average'
+                    if 'Segment' not in df.columns:
+                        df_copy = df.copy()
+                        df_copy['Segment'] = option # Assign the option name as segment
+                        charts_to_display.append(df_copy)
+                    else:
+                        charts_to_display.append(df)
+                else:
+                    st.info(f"No data available for '{option}'.")
+
+            if charts_to_display:
+                combined_df = pd.concat(charts_to_display, ignore_index=True)
+
+                # Use the broader segment_colors for consistent coloring
                 color_map = {
                     'Champions': '#60A5FA',
                     'Loyal Customers': '#818CF8',
@@ -410,49 +456,49 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
                     "Can't Lose Them": '#DC2626',
                     'Hibernating': '#FBBF24',
                     'Lost': '#F59E0B',
-                    'Unclassified': '#D1D5DB'
+                    'Unclassified': '#D1D5DB',
+                    'Overall Average': '#000000' # Black for overall average
                 }
-            else:
-                color_col = None
-                color_map = None
 
-            fig = px.line(
-                chart_df,
-                x="Period (Days)",
-                y="Avg CLTV per User",
-                text="Avg CLTV per User",
-                markers=True,
-                color=color_col,
-                color_discrete_map=color_map
-            )
-            
-            fig.update_traces(
-                texttemplate='₹%{text:.2f}',
-                textposition='top center',
-                textfont=dict(size=14, color='black'),
-                marker=dict(size=8)
-            )
-            
-            fig.update_layout(
-                title={
-                    'text': f"CLTV Realization Curve - {segment_option}",
-                    'x': 0.5,
-                    'xanchor': 'center',
-                    'font': dict(size=20, color='black')
-                },
-                xaxis=dict(
-                    title=dict(text="Days", font=dict(size=16, color='black')),
-                    tickfont=dict(size=14, color='black')
-                ),
-                yaxis=dict(
-                    title=dict(text="Avg CLTV", font=dict(size=16, color='black')),
-                    tickfont=dict(size=14, color='black')
-                ),
-                height=500
-            )
-            st.plotly_chart(fig, use_container_width=True)
+                fig = px.line(
+                    combined_df,
+                    x="Period (Days)",
+                    y="Avg CLTV per User",
+                    text="Avg CLTV per User",
+                    markers=True,
+                    color='Segment', # Always color by 'Segment' now
+                    color_discrete_map=color_map
+                )
+                
+                fig.update_traces(
+                    texttemplate='₹%{text:.2f}',
+                    textposition='top center',
+                    textfont=dict(size=14, color='black'),
+                    marker=dict(size=8)
+                )
+                
+                fig.update_layout(
+                    title={
+                        'text': f"CLTV Realization Curve - Selected Segments",
+                        'x': 0.5,
+                        'xanchor': 'center',
+                        'font': dict(size=20, color='black')
+                    },
+                    xaxis=dict(
+                        title=dict(text="Days", font=dict(size=16, color='black')),
+                        tickfont=dict(size=14, color='black')
+                    ),
+                    yaxis=dict(
+                        title=dict(text="Avg CLTV", font=dict(size=16, color='black')),
+                        tickfont=dict(size=14, color='black')
+                    ),
+                    height=500
+                )
+                st.plotly_chart(fig, use_container_width=True)
+            else:
+                st.info("No data to display for the selected groups.")
         else:
-            st.info(f"No realization curve data available for '{segment_option}'.")
+            st.info("Please select at least one customer group to display the realization curve.")
     else:
         st.warning("Realization curve data not available.")
 
@@ -528,14 +574,14 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
     st.divider()
     st.markdown("### 🔍 All Customers at a Glance")
 
-    if st.toggle("🕵️ Detailed View of Churn Analysis"):
-        if not churn_detailed_view_data.empty:
-            st.dataframe(
-                churn_detailed_view_data.style.format({'predicted_churn_prob': '{:.2%}', 'predicted_cltv_3m': '₹{:,.2f}'}),
-                use_container_width=True
-            )
-        else:
-            st.info("Detailed churn analysis data not available.")
+    # Removed st.toggle, displaying content directly
+    if not churn_detailed_view_data.empty:
+        st.dataframe(
+            churn_detailed_view_data.style.format({'predicted_churn_prob': '{:.2%}', 'predicted_cltv_3m': '₹{:,.2f}'}),
+            use_container_width=True
+        )
+    else:
+        st.info("Detailed churn analysis data not available.")
 
 
 def run_streamlit_app():
