@@ -8,7 +8,8 @@ def combine_final_customer_data(
     historical_cltv_customers: pd.DataFrame,
     predicted_churn_probabilities: pd.DataFrame,
     predicted_churn_labels: pd.DataFrame,
-    cox_predicted_active_days: pd.DataFrame
+    cox_predicted_active_days: pd.DataFrame,
+    predicted_cltv_df: pd.DataFrame # Added this input
 ) -> pd.DataFrame:
     """
     Combines various customer-related dataframes into a single final dataframe
@@ -52,8 +53,19 @@ def combine_final_customer_data(
         print("Warning: cox_predicted_active_days is empty or missing 'User ID'. Skipping merge.")
         final_df['expected_active_days'] = None # Ensure column exists
 
+    # Merge predicted CLTV (newly added)
+    if not predicted_cltv_df.empty and 'User ID' in predicted_cltv_df.columns:
+        final_df = final_df.merge(
+            predicted_cltv_df[['User ID', 'predicted_cltv_3m']],
+            on='User ID',
+            how='left'
+        )
+    else:
+        print("Warning: predicted_cltv_df is empty or missing 'User ID'. Skipping merge.")
+        final_df['predicted_cltv_3m'] = None # Ensure column exists
+
     # Fill any remaining NaNs for numerical columns that were merged
-    for col in ['predicted_churn_prob', 'predicted_churn', 'expected_active_days']:
+    for col in ['predicted_churn_prob', 'predicted_churn', 'expected_active_days', 'predicted_cltv_3m']:
         if col in final_df.columns:
             if final_df[col].dtype == 'object': # Handle cases where None might make it object
                 final_df[col] = pd.to_numeric(final_df[col], errors='coerce').fillna(0)
@@ -62,4 +74,3 @@ def combine_final_customer_data(
     
     print(f"Final combined customer data shape: {final_df.shape}")
     return final_df
-
