@@ -106,20 +106,3 @@ def merge_orders_transactions(orders_df: pd.DataFrame, transactions_df: pd.DataF
         df_orders_merged = orders_df.copy()
         
     return df_orders_merged
-
-# You will also need to define expected_orders_cols and expected_transaction_cols
-# in your project's parameters.yml or directly within this node file if they are static.
-# For Kedro, it's best to put them in parameters.yml:
-#
-# parameters:
-#   expected_orders_cols:
-#     Transaction ID: ["Transaction ID", "transaction_id"]
-#     Order ID: ["Order ID", "order_id"]
-#     # ... rest of your orders mapping
-#   expected_transaction_cols:
-#     Transaction ID: ["Transaction ID", "transaction_id"]
-#     Visit ID: ["Visit ID", "visit_id"]
-#     # ... rest of your transactions mapping
-#   orders_df_name: "Orders"
-#   transactions_df_name: "Transactions"
-
