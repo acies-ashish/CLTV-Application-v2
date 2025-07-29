@@ -175,81 +175,119 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         # Row 2: First 6 segment cards
         cards_row_1 = st.columns(6) # 6 columns for 6 cards
         for i in range(6):
-            if i < len(segment_order_display):
-                segment = segment_order_display[i]
-                with cards_row_1[i]:
-                    if segment in segment_summary_data.index:
-                        metrics = segment_summary_data.loc[segment]
-                        card_color = segment_colors.get(segment, '#aee2fd')
-                        # Adjusted text color for better contrast on the new minimalist palette
-                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black" 
-                        st.markdown(f"""
-                            <div style="
-                                background-color: {card_color};
-                                padding: 20px 15px;
-                                border-radius: 12px;
-                                color: {text_color};
-                                min-height: 250px;
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                                font-family: 'Segoe UI', sans-serif;
-                            ">
-                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
-                                    {segment}
-                                </h4>
-                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
-                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
-                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
-                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
-                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
-                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
-                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
-                                </ul>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.info(f"No data for {segment} segment.")
-            else:
-                st.empty() # Fill remaining columns in the row with empty space
+            segment = segment_order_display[i] # Get segment name
+            with cards_row_1[i]:
+                card_color = segment_colors.get(segment, '#aee2fd')
+                text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black" 
+                
+                if segment in segment_summary_data.index:
+                    metrics = segment_summary_data.loc[segment]
+                    st.markdown(f"""
+                        <div style="
+                            background-color: {card_color};
+                            padding: 20px 15px;
+                            border-radius: 12px;
+                            color: {text_color};
+                            min-height: 250px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                            font-family: 'Segoe UI', sans-serif;
+                        ">
+                            <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                {segment}
+                            </h4>
+                            <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                            </ul>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Display a "No data" card to maintain layout
+                    st.markdown(f"""
+                        <div style="
+                            background-color: {card_color};
+                            padding: 20px 15px;
+                            border-radius: 12px;
+                            color: {text_color};
+                            min-height: 250px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                            font-family: 'Segoe UI', sans-serif;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            text-align: center;
+                        ">
+                            <h4 style="margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                {segment}
+                            </h4>
+                            <p style="font-size: 16px; font-weight: 500;">No data available for this segment.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
+            # No need for an else: st.empty() here, as we iterate through segment_order_display and render a card for each.
 
         # Row 3: Remaining segment cards (5 of them)
         st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True) # Space between rows of cards
         cards_row_2 = st.columns(5) # 5 columns for 5 cards
         for i in range(5):
             segment_idx = 6 + i # Start from the 7th segment in the list
-            if segment_idx < len(segment_order_display):
-                segment = segment_order_display[segment_idx]
-                with cards_row_2[i]:
-                    if segment in segment_summary_data.index:
-                        metrics = segment_summary_data.loc[segment]
-                        card_color = segment_colors.get(segment, '#aee2fd')
-                        text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black"
-                        st.markdown(f"""
-                            <div style="
-                                background-color: {card_color};
-                                padding: 20px 15px;
-                                border-radius: 12px;
-                                color: {text_color};
-                                min-height: 250px;
-                                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                                font-family: 'Segoe UI', sans-serif;
-                            ">
-                                <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;'>
-                                    {segment}
-                                </h4>
-                                <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
-                                    <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
-                                    <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
-                                    <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
-                                    <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
-                                    <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
-                                    <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
-                                </ul>
-                            </div>
-                        """, unsafe_allow_html=True)
-                    else:
-                        st.info(f"No data for {segment} segment.")
-            else:
-                st.empty() # Fill remaining columns in the row with empty space
+            segment = segment_order_display[segment_idx] # Get segment name
+            with cards_row_2[i]:
+                card_color = segment_colors.get(segment, '#aee2fd')
+                text_color = "white" if segment in ['At Risk', "Can't Lose Them", 'Lost'] else "black"
+                
+                if segment in segment_summary_data.index:
+                    metrics = segment_summary_data.loc[segment]
+                    st.markdown(f"""
+                        <div style="
+                            background-color: {card_color};
+                            padding: 20px 15px;
+                            border-radius: 12px;
+                            color: {text_color};
+                            min-height: 250px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                            font-family: 'Segoe UI', sans-serif;
+                        ">
+                            <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                {segment}
+                            </h4>
+                            <ul style="list-style: none; padding: 0; font-size: 16px; font-weight: 500; line-height: 1.8;">
+                                <li><b>Avg Order Value:</b> ₹{metrics['aov']:,.2f}</li>
+                                <li><b>Avg CLTV:</b> ₹{metrics['CLTV']:,.2f}</li>
+                                <li><b>Avg Txns/User:</b> {metrics['frequency']:,.2f}</li>
+                                <li><b>Days Between Orders:</b> {metrics['avg_days_between_orders']:,.2f}</li>
+                                <li><b>Avg Recency:</b> {metrics['recency']:,.0f} days</li>
+                                <li><b>Monetary Value:</b> ₹{metrics['monetary']:,.2f}</li>
+                            </ul>
+                        </div>
+                    """, unsafe_allow_html=True)
+                else:
+                    # Display a "No data" card to maintain layout
+                    st.markdown(f"""
+                        <div style="
+                            background-color: {card_color};
+                            padding: 20px 15px;
+                            border-radius: 12px;
+                            color: {text_color};
+                            min-height: 250px;
+                            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+                            font-family: 'Segoe UI', sans-serif;
+                            display: flex;
+                            flex-direction: column;
+                            justify-content: center;
+                            align-items: center;
+                            text-align: center;
+                        ">
+                            <h4 style="margin-bottom: 15px; font-size: 20px; font-weight: 700;">
+                                {segment}
+                            </h4>
+                            <p style="font-size: 16px; font-weight: 500;">No data available for this segment.</p>
+                        </div>
+                    """, unsafe_allow_html=True)
             
     else:
         st.warning("Customer segment distribution data not available for findings.")
@@ -586,7 +624,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
-    st.title("Customer Lifetime Value Dashboard - Kedro Powered")
+    st.title("Customer Lifetime Value Dashboard")
 
     if 'ui_data' not in st.session_state:
         st.session_state['ui_data'] = None
