@@ -47,7 +47,8 @@ def run_kedro_main_pipeline_and_load_ui_data():
     try:
         with KedroSession.create(project_path=KEDRO_PROJECT_ROOT) as session:
             context = session.load_context()
-            session.run(pipeline_name="preprocessing_pipeline") 
+            # Changed pipeline_name from "preprocessing_pipeline" to "full_pipeline"
+            session.run(pipeline_name="full_pipeline") 
             
             ui_data = {}
             # The rfm_segmented key now loads the combined final customer data
@@ -70,7 +71,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
 
         return ui_data
     except Exception as e:
-        st.error(f"❌ Error running Kedro pipeline or loading UI data: {e}")
+        st.error(f"Error running Kedro pipeline or loading UI data: {e}")
         return None
 
 # Helper function to add ordinal suffix (copied from nodes.py)
@@ -91,7 +92,6 @@ def kpi_card(title, value, color="black"):
                     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
                     min-height:100px;
                     color:black;
-                    font-family: 'Segoe UI', sans-serif;
                     text-align:center">
             <div style="font-size:16px; font-weight:600; margin-bottom:6px;">{title}</div>
             <div style="font-size:24px; font-weight:bold; color:{color};">{value}</div>
@@ -99,12 +99,12 @@ def kpi_card(title, value, color="black"):
     """, unsafe_allow_html=True)
 
 def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment_counts_data: pd.DataFrame, top_products_by_segment_data: Dict[str, pd.DataFrame], df_orders_merged: pd.DataFrame):
-    st.subheader("📊 Key Performance Indicators")
+    st.subheader("Key Performance Indicators")
 
     # Display Data Timeframe prominently but outside KPI cards
     start_date_kpi = kpi_data.get('start_date', "N/A")
     end_date_kpi = kpi_data.get('end_date', "N/A")
-    st.info(f"📅 Data Timeframe: {start_date_kpi} to {end_date_kpi}")
+    st.info(f"Data Timeframe: {start_date_kpi} to {end_date_kpi}")
     st.markdown("---") # Add a separator
 
     # KPIs are now based on the full dataset as processed by Kedro
@@ -117,21 +117,21 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
 
 
     row1_kpis = st.columns(3, gap="small")
-    with row1_kpis[0]: kpi_card("📈 Total Revenue", f"₹{total_revenue:,.0f}", color="black")
-    with row1_kpis[1]: kpi_card("💰 Average CLTV", f"₹{avg_cltv:,.0f}")
-    with row1_kpis[2]: kpi_card("🛒 Average Order Value", f"₹{avg_aov:.0f}")
+    with row1_kpis[0]: kpi_card("Total Revenue", f"₹{total_revenue:,.0f}", color="black")
+    with row1_kpis[1]: kpi_card("Average CLTV", f"₹{avg_cltv:,.0f}")
+    with row1_kpis[2]: kpi_card("Average Order Value", f"₹{avg_aov:.0f}")
     
     # Add a small vertical space between rows
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
     row2_kpis = st.columns(3, gap="small")
-    with row2_kpis[0]: kpi_card("📦 Avg Transactions/User", f"{avg_txns_per_user:.0f}")
-    with row2_kpis[1]: kpi_card("👥 Total Customers", total_customers, color="black")
-    with row2_kpis[2]: kpi_card("📉 Churn Rate", f"{churn_rate:.2f}%", color="red")
+    with row2_kpis[0]: kpi_card("Avg Transactions/User", f"{avg_txns_per_user:.0f}")
+    with row2_kpis[1]: kpi_card("Total Customers", total_customers, color="black")
+    with row2_kpis[2]: kpi_card("Churn Rate", f"{churn_rate:.2f}%", color="red")
 
 
     st.divider()
-    st.subheader("📈 Segment Visuals") # Changed from 'Visual Insights'
+    st.subheader("Segment Visuals") # Changed from 'Visual Insights'
 
     # Define a minimalist color palette for the new 11 segments
     segment_colors = {
@@ -151,7 +151,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
 
     if not segment_counts_data.empty:
         # Row 1: Pie Chart (full width)
-        st.markdown("#### 🎯 Customer Segment Distribution")
+        st.markdown("#### Customer Segment Distribution")
         fig1 = px.pie(
             segment_counts_data,
             values='Count',
@@ -165,7 +165,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         fig1.update_layout(height=500) 
         st.plotly_chart(fig1, use_container_width=True)
         
-        st.markdown("#### 📊 Segment-wise Summary Metrics")
+        st.markdown("#### Segment-wise Summary Metrics")
         segment_order_display = [
             'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
             'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
@@ -190,7 +190,6 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                             color: {text_color};
                             min-height: 250px;
                             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                            font-family: 'Segoe UI', sans-serif;
                         ">
                             <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
                                 {segment}
@@ -215,7 +214,6 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                             color: {text_color};
                             min-height: 250px;
                             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                            font-family: 'Segoe UI', sans-serif;
                             display: flex;
                             flex-direction: column;
                             justify-content: center;
@@ -250,7 +248,6 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                             color: {text_color};
                             min-height: 250px;
                             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                            font-family: 'Segoe UI', sans-serif;
                         ">
                             <h4 style="text-align: center; margin-bottom: 15px; font-size: 20px; font-weight: 700;">
                                 {segment}
@@ -275,7 +272,6 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                             color: {text_color};
                             min-height: 250px;
                             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-                            font-family: 'Segoe UI', sans-serif;
                             display: flex;
                             flex-direction: column;
                             justify-content: center;
@@ -293,9 +289,9 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         st.warning("Customer segment distribution data not available for findings.")
 
 
-    # 🛍️ Top Products by Segment
+    # Top Products by Segment
     st.divider()
-    st.markdown("#### 🛍️ Top Products Bought by Segment Customers")
+    st.markdown("#### Top Products Bought by Segment Customers")
     if top_products_by_segment_data:
         # Add radio button for selection
         metric_choice = st.radio(
@@ -325,12 +321,12 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                 y_col = 'Total_Quantity'
                 y_axis_title = 'Total Quantity'
                 text_template = '%{text:.0f}'
-                chart_title = f"📦 Top 5 Products by Quantity for '{selected_segment}' (All Time)"
+                chart_title = f"Top 5 Products by Quantity for '{selected_segment}' (All Time)"
             else: # Total Revenue
                 y_col = 'Total_Revenue'
                 y_axis_title = 'Total Revenue (₹)'
                 text_template = '₹%{text:,.2f}'
-                chart_title = f"💰 Top 5 Products by Revenue for '{selected_segment}' (All Time)"
+                chart_title = f"Top 5 Products by Revenue for '{selected_segment}' (All Time)"
 
             st.markdown(f"#### {chart_title}")
             fig_products = px.bar(
@@ -352,17 +348,17 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             fig_products.update_layout(yaxis_title=y_axis_title, xaxis_title="Product ID") # Dynamic axis title
             st.plotly_chart(fig_products, use_container_width=True)
         else:
-            st.info(f"✅ No products found for the '{selected_segment}' segment.")
+            st.info(f"No products found for the '{selected_segment}' segment.")
     else:
         st.warning("Top products by segment data not available.")
 
 def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_comparison_data: pd.DataFrame):
     # Removed the outer expander for the Predictions tab content
-    st.subheader("🔮 Predicted CLTV (Next 3 Months) Overview")
+    st.subheader("Predicted CLTV (Next 3 Months) Overview")
     st.caption("Forecasted Customer Lifetime Value using BG/NBD + Gamma-Gamma model.")
 
     # Nested expander for the Predicted CLTV table
-    with st.expander("📋 Predicted CLTV Table", expanded=False):
+    with st.expander("Predicted CLTV Table", expanded=False):
         if not predicted_cltv_display_data.empty:
             new_segment_options = [
                 "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
@@ -370,7 +366,7 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
                 "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
             ]
             table_segment = st.selectbox(
-                "📋 Table Filter by Segment", new_segment_options,
+                "Table Filter by Segment", new_segment_options,
                 index=0, key="predicted_cltv_table_segment_filter"
             )
 
@@ -387,7 +383,7 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
             st.warning("Predicted CLTV data not available.")
 
     # Nested expander for the CLTV Comparison Chart
-    with st.expander("📊 CLTV Comparison Chart", expanded=False):
+    with st.expander("CLTV Comparison Chart", expanded=False):
         if not cltv_comparison_data.empty:
             chart_segment_options = [
                 "All", 'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
@@ -422,17 +418,17 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
 
 def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.DataFrame):
     # Removed the outer expander for the Detailed View tab content
-    st.subheader("📋 Full RFM Segmented Data & At-Risk Customers Overview")
+    st.subheader("Full RFM Segmented Data & At-Risk Customers Overview")
 
     # Nested expander for Full RFM Segmented Data
-    with st.expander("📋 Full RFM Segmented Data with CLTV", expanded=False):
+    with st.expander("Full RFM Segmented Data with CLTV", expanded=False):
         if not rfm_segmented.empty:
             st.dataframe(rfm_segmented)
         else:
             st.warning("RFM Segmented data not available.")
 
     # Nested expander for Customers at Risk
-    with st.expander("⚠️ Customers at Risk (Recency > 70 days)", expanded=False):
+    with st.expander("Customers at Risk (Recency > 70 days)", expanded=False):
         st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
         if not customers_at_risk_df.empty:
             st.dataframe(customers_at_risk_df)
@@ -440,7 +436,7 @@ def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.
             st.info("No customers identified as at risk, or data not available.")
 
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
-    st.subheader("📈 Realization Curve of CLTV Over Time")
+    st.subheader("Realization Curve of CLTV Over Time")
     if realization_curve_data:
         # Define all available segments for the multiselect, including "Overall Average" and "All Segments"
         all_options = [
@@ -541,7 +537,7 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
         st.warning("Realization curve data not available.")
 
 def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFrame, active_days_summary_data: pd.DataFrame, churn_detailed_view_data: pd.DataFrame):
-    st.subheader("📉 Churn Prediction Overview")
+    st.subheader("Churn Prediction Overview")
 
     if 'predicted_churn' in rfm_segmented.columns:
         churned = rfm_segmented[rfm_segmented['predicted_churn'] == 1]
@@ -553,7 +549,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
         st.warning("Churn prediction data not available for overview metrics.")
 
     st.divider()
-    st.markdown("### 📊 Churn Summary by Segment")
+    st.markdown("### Churn Summary by Segment")
 
     col1, col2 = st.columns(2)
 
@@ -574,7 +570,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
     }
 
     with col1:
-        st.markdown("#### 🔴 Avg Churn Probability")
+        st.markdown("#### Avg Churn Probability")
         if not churn_summary_data.empty:
             fig_churn = px.bar(
                 churn_summary_data.sort_values(by='Avg Churn Probability'),
@@ -592,7 +588,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
             st.info("Average churn probability data not available.")
 
     with col2:
-        st.markdown("#### ⏳ Avg Expected Active Days")
+        st.markdown("#### Avg Expected Active Days")
         if not active_days_summary_data.empty:
             fig_days = px.bar(
                 active_days_summary_data.sort_values(by='Avg Expected Active Days'),
@@ -610,7 +606,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
             st.info("Average expected active days data not available.")
     
     st.divider()
-    st.markdown("### 🔍 All Customers at a Glance")
+    st.markdown("### All Customers at a Glance")
 
     # Removed st.toggle, displaying content directly
     if not churn_detailed_view_data.empty:
@@ -624,7 +620,17 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
-    st.title("Customer Lifetime Value Dashboard")
+    st.title("Customer Lifetime Value Dashboard - Kedro Powered")
+
+    # --- Load custom CSS from .streamlit/style.css ---
+    # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
+    try:
+        with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
+            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    except FileNotFoundError:
+        st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
+    # --- End custom CSS load ---
+
 
     if 'ui_data' not in st.session_state:
         st.session_state['ui_data'] = None
@@ -641,7 +647,7 @@ def run_streamlit_app():
         orders_file = st.file_uploader("Upload Orders CSV", type=["csv"], key="orders_upload")
         transactions_file = st.file_uploader("Upload Transactions CSV", type=["csv"], key="transactions_upload")
 
-        use_sample_data = st.button("🚀 Use Sample Data Instead", key="use_sample_button")
+        use_sample_data = st.button("Use Sample Data Instead", key="use_sample_button")
 
         if orders_file and transactions_file:
             st.session_state['data_source'] = 'uploaded'
@@ -654,7 +660,7 @@ def run_streamlit_app():
             st.session_state['transactions_file_obj'] = None
             st.success("Using sample data. Click 'Process Data' to continue.")
 
-        if st.button("⚙️ Process Data (Run Kedro Pipeline)", key="process_data_button"):
+        if st.button("Process Data (Run Kedro Pipeline)", key="process_data_button"):
             st.cache_data.clear() 
             if 'data_source' not in st.session_state:
                 st.warning("Please upload files or select sample data first.")
@@ -680,7 +686,7 @@ def run_streamlit_app():
                     st.session_state['preprocessing_triggered'] = True
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Error preparing data: {e}")
+                    st.error(f"Error preparing data: {e}")
                     st.session_state['preprocessing_triggered'] = False
 
     if st.session_state.get('preprocessing_triggered'):
@@ -689,7 +695,7 @@ def run_streamlit_app():
         st.session_state['preprocessing_triggered'] = False
         
         if st.session_state['ui_data'] is not None:
-            st.success("✅ Kedro pipeline completed successfully and UI data loaded!")
+            st.success("Kedro pipeline completed successfully and UI data loaded!")
 
     if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
@@ -706,7 +712,7 @@ def run_streamlit_app():
     else:
         for tab in [tab2, tab3, tab4, tab5, tab6]:
             with tab:
-                st.warning("⚠ Please upload or load data first in the 'Upload / Load Data' tab and click 'Process Data'.")
+                st.warning("Please upload or load data first in the 'Upload / Load Data' tab and click 'Process Data'.")
 
 if __name__ == "__main__":
     run_streamlit_app()
