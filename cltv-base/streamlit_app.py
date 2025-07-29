@@ -47,7 +47,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
     try:
         with KedroSession.create(project_path=KEDRO_PROJECT_ROOT) as session:
             context = session.load_context()
-            # Changed pipeline_name from "preprocessing_pipeline" to "full_pipeline"
+            # Run the "full_pipeline" as registered in pipeline_registry.py
             session.run(pipeline_name="full_pipeline") 
             
             ui_data = {}
@@ -149,28 +149,67 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         'Unclassified': '#D1D5DB' # Light Grey
     }
 
+    # Define segment order and descriptions at the start of the function
+    segment_order_display = [
+        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
+        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
+        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
+    ]
+    
+    segment_descriptions = {
+        'Champions': "The cream of the crop - your top customers who are the most loyal and generate the most of the revenue. They buy recently, frequently, and spend a lot.",
+        'Loyal Customers': "Customers who buy frequently and recently, but may not spend as much as Champions. They are consistent and valuable.",
+        'Potential Loyalists': "Recent customers who have made a few purchases and have good potential to become loyal customers if nurtured. They need attention to increase frequency and monetary value.",
+        'Recent Customers': "Customers who have made a purchase very recently. They are still fresh and might make repeat purchases soon.",
+        'Promising': "Customers who have bought recently and spent a good amount, but their frequency might be lower. They show potential for higher engagement.",
+        'Customers Needing Attention': "Customers who haven't purchased for a while and might be at risk of churning. They need re-engagement strategies.",
+        'About to Sleep': "Customers who were active but haven't purchased recently. They are on the verge of becoming 'Hibernating' or 'Lost'.",
+        'At Risk': "Customers who haven't purchased for a significant period and are likely to churn. Urgent re-engagement is needed.",
+        "Can't Lose Them": "High-value customers who were once frequent and high-spending but haven't purchased recently. Losing them would be a significant blow.",
+        'Hibernating': "Customers who haven't purchased for a very long time. They are difficult to reactivate but not entirely lost.",
+        'Lost': "Customers who have not purchased for the longest time and are highly unlikely to return. Focus on new customer acquisition.",
+        'Unclassified': "Customers who do not fit clearly into any of the defined RFM segments. Further analysis may be needed for these."
+    }
+
+
     if not segment_counts_data.empty:
-        # Row 1: Pie Chart (full width)
         st.markdown("#### Customer Segment Distribution")
-        fig1 = px.pie(
-            segment_counts_data,
-            values='Count',
-            names='Segment',
-            hole=0.45,
-            color='Segment',
-            color_discrete_map=segment_colors
-        )
-        fig1.update_traces(textinfo='percent+label', textposition='inside')
-        # Increased height for the pie chart
-        fig1.update_layout(height=500) 
-        st.plotly_chart(fig1, use_container_width=True)
         
+        # Use st.columns for chart and description side-by-side
+        col_chart, col_description = st.columns([0.6, 0.4]) # Adjust ratio as needed
+
+        with col_chart:
+            fig1 = px.pie(
+                segment_counts_data,
+                values='Count',
+                names='Segment',
+                hole=0.45,
+                color='Segment',
+                color_discrete_map=segment_colors
+            )
+            fig1.update_traces(textinfo='percent+label', textposition='inside')
+            fig1.update_layout(height=500) 
+            st.plotly_chart(fig1, use_container_width=True)
+        
+        with col_description:
+            st.markdown("#### Understanding Your Customer Segments")
+            
+            # Create a selectbox for segment descriptions
+            selected_segment_for_desc = st.selectbox(
+                "Select a segment to view its description:",
+                options=segment_order_display,
+                key="segment_description_selector"
+            )
+            
+            # Display the description for the selected segment
+            if selected_segment_for_desc:
+                description = segment_descriptions.get(selected_segment_for_desc, "Description not available.")
+                st.markdown(f"**{selected_segment_for_desc}:** {description}")
+            else:
+                st.info("Please select a segment from the dropdown to view its description.")
+
+
         st.markdown("#### Segment-wise Summary Metrics")
-        segment_order_display = [
-            'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-            'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-            "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-        ]
         
         # Row 2: First 6 segment cards
         cards_row_1 = st.columns(6) # 6 columns for 6 cards
@@ -620,9 +659,9 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
-    st.title("Customer Lifetime Value Dashboard")
+    st.title("Customer Lifetime Value Dashboard - Kedro Powered")
 
-    # --- Load custom CSS from .streamlit/style.css ---
+    # --- Load custom CSS ---
     # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
     try:
         with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
