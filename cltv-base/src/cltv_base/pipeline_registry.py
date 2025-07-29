@@ -1,12 +1,13 @@
-# src/customer_analytics/pipeline_registry.py
+# src/cltv_base/pipeline_registry.py
 
 """Project pipelines."""
 from typing import Dict
 
 from kedro.pipeline import Pipeline
 
-# Import your preprocessing pipeline
-from cltv_base.pipeline import create_pipeline as create_preprocessing_pipeline
+# Import the main pipeline creation function from cltv_base.pipeline
+# This function already assembles all your sub-pipelines
+from cltv_base.pipeline import create_pipeline as create_full_project_pipeline
 
 
 def register_pipelines() -> Dict[str, Pipeline]:
@@ -15,12 +16,13 @@ def register_pipelines() -> Dict[str, Pipeline]:
     Returns:
         A mapping from pipeline names to ``Pipeline`` objects.
     """
-    # Create an instance of your preprocessing pipeline
-    preprocessing_pipeline = create_preprocessing_pipeline()
+    # Create an instance of the full assembled pipeline
+    # This single call now represents your entire data workflow
+    full_project_pipeline = create_full_project_pipeline()
 
-    # Register the pipeline with a name
+    # Register the full pipeline with a descriptive name
     return {
-        "preprocessing_pipeline": preprocessing_pipeline,
-        "__default__": preprocessing_pipeline, # Optionally set it as the default pipeline
+        "full_pipeline": full_project_pipeline,
+        "__default__": full_project_pipeline, # Set it as the default pipeline
     }
 
