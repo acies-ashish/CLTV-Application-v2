@@ -659,7 +659,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
-    st.title("Customer Lifetime Value Dashboard - Kedro Powered")
+    st.title("Customer Lifetime Value Dashboard")
 
     # --- Load custom CSS ---
     # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
