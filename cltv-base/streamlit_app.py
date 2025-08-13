@@ -663,11 +663,11 @@ def run_streamlit_app():
 
     # --- Load custom CSS ---
     # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
-    try:
-        with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
+    #try:
+    #    with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
+    #        st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    #except FileNotFoundError:
+    #    st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
     # --- End custom CSS load ---
 
 
