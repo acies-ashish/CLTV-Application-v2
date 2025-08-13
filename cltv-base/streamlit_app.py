@@ -8,6 +8,8 @@ import shutil # Needed for copying sample files to the fixed input location
 import plotly.express as px # Keep plotly for chart rendering
 import json # For loading JSON datasets
 from typing import Dict
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 
 # Import Kedro specific components
 from kedro.framework.session import KedroSession
@@ -64,6 +66,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['active_days_summary'] = context.catalog.load("active_days_summary_data_for_ui")
             ui_data['churn_detailed_view'] = context.catalog.load("churn_detailed_view_data_for_ui")
             ui_data['customers_at_risk'] = context.catalog.load("customers_at_risk_df")
+            ui_data['recency_threshold'] = context.catalog.load("calculated_at_risk_threshold")
             # Also load the original orders and transactions data if needed for UI functions that directly use them
             ui_data['df_orders_merged'] = context.catalog.load("orders_merged_with_user_id")
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
@@ -454,25 +457,109 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
         else:
             st.warning("CLTV comparison data not available.")
 
-
-def show_detailed_view_ui(rfm_segmented: pd.DataFrame, customers_at_risk_df: pd.DataFrame):
-    # Removed the outer expander for the Detailed View tab content
+def show_detailed_view_ui(
+    rfm_segmented: pd.DataFrame,
+    customers_at_risk_df: pd.DataFrame,
+    recency_threshold
+):
     st.subheader("Full RFM Segmented Data & At-Risk Customers Overview")
 
-    # Nested expander for Full RFM Segmented Data
     with st.expander("Full RFM Segmented Data with CLTV", expanded=False):
         if not rfm_segmented.empty:
             st.dataframe(rfm_segmented)
         else:
             st.warning("RFM Segmented data not available.")
 
-    # Nested expander for Customers at Risk
-    with st.expander("Customers at Risk (Recency > 70 days)", expanded=False):
-        st.caption("These are customers whose last purchase was over 70 days ago and may be at risk of churning.")
+    if isinstance(recency_threshold, dict):
+        recency_value = (
+            recency_threshold.get("at_risk_threshold_days")
+            or recency_threshold.get("recency_threshold")
+            or list(recency_threshold.values())[0]  # grab first value
+        )
+    else:
+        recency_value = recency_threshold
+
+
+    with st.expander(f"Customers at Risk (Recency > {recency_value:.0f} days)", expanded=False):
+        st.caption(
+            f"These are customers whose last purchase was over {recency_value:.0f} days ago and may be at risk of churning."
+        )
         if not customers_at_risk_df.empty:
             st.dataframe(customers_at_risk_df)
         else:
             st.info("No customers identified as at risk, or data not available.")
+            
+    with st.expander("Recency Distribution (Box & Histogram)"):
+        def plot_recency_distribution(rfm_df: pd.DataFrame, recency_threshold: float):
+            """
+            Create boxplot + histogram for Recency distribution, grouped by Risk_Label.
+            Risk_Label is derived from recency_threshold.
+            """
+            if isinstance(recency_threshold, dict):
+                recency_value = (
+                    recency_threshold.get("at_risk_threshold_days")
+                    or recency_threshold.get("recency_threshold")
+                    or list(recency_threshold.values())[0]  # grab first value
+                )
+            else:
+                recency_value = recency_threshold
+            
+            # Ensure label column exists
+            rfm_df = rfm_df.copy()
+            rfm_df["Risk_Label"] = rfm_df["recency"].apply(
+                lambda x: "at risk" if x >= recency_value else "regular customers"
+            )
+
+            # Colors for the two groups
+            colors = {
+                "at risk": ("crimson", "lightcoral"),
+                "regular customers": ("deepskyblue", "lightblue")
+            }
+
+            # Create subplots: 1 row, 2 columns
+            fig = make_subplots(
+                rows=1, cols=2,
+                subplot_titles=("Box Plot (Recency)", "Histogram (Recency)"),
+                horizontal_spacing=0.15
+            )
+
+            # Box Plot (col=1)
+            for label, (box_color, _) in colors.items():
+                subset = rfm_df[rfm_df["Risk_Label"] == label]
+                fig.add_trace(
+                    go.Box(
+                        y=subset["recency"],
+                        name=label,
+                        marker_color=box_color,
+                        boxpoints="outliers"
+                    ),
+                    row=1, col=1
+                )
+
+            # Histogram (col=2)
+            for label, (_, hist_color) in colors.items():
+                subset = rfm_df[rfm_df["Risk_Label"] == label]
+                fig.add_trace(
+                    go.Histogram(
+                        x=subset["recency"],
+                        name=label,
+                        marker_color=hist_color,
+                        opacity=0.7
+                    ),
+                    row=1, col=2
+                )
+
+            fig.update_layout(
+                height=500,
+                width=1000,
+                title_text="Recency Distribution by Risk Segment",
+                barmode="overlay"
+            )
+            return fig
+
+        fig_recency = plot_recency_distribution(rfm_segmented, recency_value)
+        st.plotly_chart(fig_recency, use_container_width=True)
+
 
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("Realization Curve of CLTV Over Time")
@@ -661,14 +748,14 @@ def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard")
 
-    # --- Load custom CSS ---
-    # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
-    try:
-        with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
-            st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    except FileNotFoundError:
-        st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
-    # --- End custom CSS load ---
+    # # --- Load custom CSS ---
+    # # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
+    # try:
+    #     with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
+    #         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
+    # except FileNotFoundError:
+    #     st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
+    # # --- End custom CSS load ---
 
 
     if 'ui_data' not in st.session_state:
@@ -741,7 +828,7 @@ def run_streamlit_app():
         with tab2:
             show_findings_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
-            show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'])
+            show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'], ui_data['recency_threshold'])
         with tab4:
             show_prediction_tab_ui(ui_data['predicted_cltv_display'], ui_data['cltv_comparison'])
         with tab5:
