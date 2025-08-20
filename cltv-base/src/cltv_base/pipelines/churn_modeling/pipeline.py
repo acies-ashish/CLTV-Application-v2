@@ -1,6 +1,8 @@
 from kedro.pipeline import Pipeline, node
 from .nodes import (
-    calculate_at_risk_threshold,
+    calculate_all_distribution_thresholds,
+    calculate_user_value_threshold,
+    calculate_ml_based_threshold,
     get_customers_at_risk,
     label_churned_customers,
     get_churn_features_labels,
@@ -11,11 +13,10 @@ from .nodes import (
     train_cox_survival_model
 )
 
-
 def create_pipeline(**kwargs) -> Pipeline:
     """
     Churn modeling pipeline:
-    - Calculates dynamic at-risk threshold
+    - Calculates threshold (distribution/user/ML/metric) based on params
     - Flags at-risk customers
     - Labels churned customers
     - Trains churn model
@@ -23,21 +24,41 @@ def create_pipeline(**kwargs) -> Pipeline:
     - Trains survival model for churn time prediction
     """
     return Pipeline([
+        # Choose threshold calculation method and metric using params
         node(
-            func=calculate_at_risk_threshold,
-            inputs="historical_cltv_customers",
-            outputs="calculated_at_risk_threshold",
-            name="calculate_at_risk_threshold"
+            func=calculate_all_distribution_thresholds,
+            inputs=["historical_cltv_customers", "params:threshold_metric"],
+            outputs="calculated_distribution_threshold",
+            name="calculate_distribution_threshold"
         ),
         node(
+            func=calculate_user_value_threshold,
+            inputs=["params:threshold_metric", "params:user_threshold_value"],
+            outputs="calculated_user_value_threshold",
+            name="calculate_user_value_threshold"
+        ),
+
+        node(
+            func=calculate_ml_based_threshold,
+            inputs=["historical_cltv_customers", "params:threshold_metric"],
+            outputs="calculated_ml_threshold",
+            name="calculate_ml_based_threshold"
+        ),
+        # Decide which threshold to use via parameters (handled dynamically in pipeline run, see catalog config)
+        # downstream nodes take the proper threshold dict as input
+        node(
             func=get_customers_at_risk,
-            inputs=["historical_cltv_customers", "calculated_at_risk_threshold"],
+            inputs=[
+                "historical_cltv_customers",
+                "params:selected_threshold_dict",  # dynamically chosen: distribution/user/ml
+                "params:threshold_metric"
+            ],
             outputs="customers_at_risk_df",
             name="get_customers_at_risk"
         ),
         node(
             func=label_churned_customers,
-            inputs=["historical_cltv_customers", "params:churn_inactive_days_threshold"],
+            inputs=["historical_cltv_customers", "params:threshold_metric", "params:inactive_days_threshold"],
             outputs="churn_labeled_customers",
             name="label_churned_customers"
         ),
@@ -73,7 +94,7 @@ def create_pipeline(**kwargs) -> Pipeline:
         ),
         node(
             func=prepare_survival_data,
-            inputs=["historical_cltv_customers", "params:churn_inactive_days_threshold"],
+            inputs=["historical_cltv_customers", "params:inactive_days_threshold"],
             outputs="survival_data",
             name="prepare_survival_data"
         ),
