@@ -70,7 +70,9 @@ def run_kedro_main_pipeline_and_load_ui_data():
             # Also load the original orders and transactions data if needed for UI functions that directly use them
             ui_data['df_orders_merged'] = context.catalog.load("orders_merged_with_user_id")
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
-
+            ui_data['calculated_distribution_threshold'] = context.catalog.load("calculated_distribution_threshold")
+            ui_data['calculated_user_value_threshold'] = context.catalog.load("calculated_user_value_threshold")
+            ui_data['calculated_ml_threshold'] = context.catalog.load("calculated_ml_threshold")
 
         return ui_data
     except Exception as e:
@@ -460,105 +462,83 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
 def show_detailed_view_ui(
     rfm_segmented: pd.DataFrame,
     customers_at_risk_df: pd.DataFrame,
-    recency_threshold
+    selected_metric: str,
+    threshold_value: float
 ):
     st.subheader("Full RFM Segmented Data & At-Risk Customers Overview")
-
     with st.expander("Full RFM Segmented Data with CLTV", expanded=False):
         if not rfm_segmented.empty:
             st.dataframe(rfm_segmented)
         else:
             st.warning("RFM Segmented data not available.")
 
-    if isinstance(recency_threshold, dict):
-        recency_value = (
-            recency_threshold.get("at_risk_threshold_days")
-            or recency_threshold.get("recency_threshold")
-            or list(recency_threshold.values())[0]  # grab first value
-        )
+    # Label logic for current metric
+    if selected_metric in ['recency']:
+        operator_text = f"{selected_metric.title()} > {threshold_value:.0f}"
+        risk_lambda = lambda x: "at risk" if x >= threshold_value else "regular customers"
+        caption_text = f"Customers whose {selected_metric.title()} exceeds {threshold_value:.0f}: may be at risk of churning."
     else:
-        recency_value = recency_threshold
+        operator_text = f"{selected_metric.title()} < {threshold_value:.0f}"
+        risk_lambda = lambda x: "at risk" if x < threshold_value else "regular customers"
+        caption_text = f"Customers whose {selected_metric.title()} is below {threshold_value:.0f}: may be at risk of churning."
 
-
-    with st.expander(f"Customers at Risk (Recency > {recency_value:.0f} days)", expanded=False):
-        st.caption(
-            f"These are customers whose last purchase was over {recency_value:.0f} days ago and may be at risk of churning."
-        )
+    with st.expander(f"Customers at Risk ({operator_text})", expanded=False):
+        st.caption(caption_text)
         if not customers_at_risk_df.empty:
             st.dataframe(customers_at_risk_df)
         else:
             st.info("No customers identified as at risk, or data not available.")
-            
-    with st.expander("Recency Distribution (Box & Histogram)"):
-        def plot_recency_distribution(rfm_df: pd.DataFrame, recency_threshold: float):
-            """
-            Create boxplot + histogram for Recency distribution, grouped by Risk_Label.
-            Risk_Label is derived from recency_threshold.
-            """
-            if isinstance(recency_threshold, dict):
-                recency_value = (
-                    recency_threshold.get("at_risk_threshold_days")
-                    or recency_threshold.get("recency_threshold")
-                    or list(recency_threshold.values())[0]  # grab first value
-                )
-            else:
-                recency_value = recency_threshold
-            
-            # Ensure label column exists
-            rfm_df = rfm_df.copy()
-            rfm_df["Risk_Label"] = rfm_df["recency"].apply(
-                lambda x: "at risk" if x >= recency_value else "regular customers"
-            )
 
-            # Colors for the two groups
+    with st.expander(f"{selected_metric.title()} Distribution (Box & Histogram)"):
+        def plot_metric_distribution(rfm_df: pd.DataFrame, metric: str, threshold_val: float):
+            # Correct logic for all metrics:
+            if metric in ['recency', 'rfm_score']:
+                rfm_df = rfm_df.copy()
+                rfm_df["Risk_Label"] = rfm_df[metric].apply(lambda x: "at risk" if x >= threshold_val else "regular customers")
+            else:
+                rfm_df = rfm_df.copy()
+                rfm_df["Risk_Label"] = rfm_df[metric].apply(lambda x: "at risk" if x < threshold_val else "regular customers")
             colors = {
                 "at risk": ("crimson", "lightcoral"),
                 "regular customers": ("deepskyblue", "lightblue")
             }
-
-            # Create subplots: 1 row, 2 columns
             fig = make_subplots(
                 rows=1, cols=2,
-                subplot_titles=("Box Plot (Recency)", "Histogram (Recency)"),
+                subplot_titles=(f"Box Plot ({metric.title()})", f"Histogram ({metric.title()})"),
                 horizontal_spacing=0.15
             )
-
-            # Box Plot (col=1)
             for label, (box_color, _) in colors.items():
                 subset = rfm_df[rfm_df["Risk_Label"] == label]
                 fig.add_trace(
                     go.Box(
-                        y=subset["recency"],
+                        y=subset[metric],
                         name=label,
                         marker_color=box_color,
                         boxpoints="outliers"
                     ),
                     row=1, col=1
                 )
-
-            # Histogram (col=2)
             for label, (_, hist_color) in colors.items():
                 subset = rfm_df[rfm_df["Risk_Label"] == label]
                 fig.add_trace(
                     go.Histogram(
-                        x=subset["recency"],
+                        x=subset[metric],
                         name=label,
                         marker_color=hist_color,
                         opacity=0.7
                     ),
                     row=1, col=2
                 )
-
             fig.update_layout(
                 height=500,
                 width=1000,
-                title_text="Recency Distribution by Risk Segment",
+                title_text=f"{metric.title()} Distribution by Risk Segment",
                 barmode="overlay"
             )
             return fig
 
-        fig_recency = plot_recency_distribution(rfm_segmented, recency_value)
-        st.plotly_chart(fig_recency, use_container_width=True)
+        fig_metric = plot_metric_distribution(rfm_segmented, selected_metric, threshold_value)
+        st.plotly_chart(fig_metric, use_container_width=True)
 
 
 def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
@@ -828,7 +808,63 @@ def run_streamlit_app():
         with tab2:
             show_findings_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
-            show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'], ui_data['recency_threshold'])
+            # --- Add THIS block before calling show_detailed_view_ui() in tab3 ---
+            THRESHOLD_METRICS = ['recency', 'frequency', 'monetary', 'rfm_score']
+            THRESHOLD_STRATEGIES = [
+                'Distribution based (75th percentile)',
+                'User set value',
+                'ML-based (future)'
+            ]
+
+            col1, col2 = st.columns(2)
+            with col1:
+                selected_metric = st.selectbox(
+                    "Select metric for thresholding:",
+                    THRESHOLD_METRICS,
+                    index=0,
+                    key="metric_select"
+                )
+            with col2:
+                selected_strategy = st.selectbox(
+                    "Choose thresholding method:",
+                    THRESHOLD_STRATEGIES,
+                    index=0,
+                    key="strategy_select"
+                )
+
+            user_threshold_value = st.number_input(
+                f"Set your custom {selected_metric} threshold:",
+                min_value=0.0, value=30.0, step=1.0,
+                disabled=(selected_strategy != 'User set value'),
+                key="custom_threshold"
+            )
+
+            # --- Determine the correct threshold value ---
+            distribution_threshold = ui_data.get("calculated_distribution_threshold", {})
+            ml_based_threshold = ui_data.get("calculated_ml_threshold", {})
+            recency_threshold = ui_data.get("recency_threshold", {})  # legacy/compat
+
+            if selected_strategy == 'Distribution based (75th percentile)':
+                if isinstance(distribution_threshold, dict):
+                    threshold_value = distribution_threshold.get(f"{selected_metric}_threshold", 0)
+                else:
+                    threshold_value = distribution_threshold
+            elif selected_strategy == 'User set value':
+                threshold_value = user_threshold_value
+            elif selected_strategy == 'ML-based (future)':
+                if isinstance(ml_based_threshold, dict):
+                    threshold_value = ml_based_threshold.get(f"{selected_metric}_threshold", 0)
+                else:
+                    threshold_value = ml_based_threshold
+            else:
+                threshold_value = 0
+
+            show_detailed_view_ui(
+                ui_data['rfm_segmented'],
+                ui_data['customers_at_risk'],
+                selected_metric,
+                threshold_value
+            )
         with tab4:
             show_prediction_tab_ui(ui_data['predicted_cltv_display'], ui_data['cltv_comparison'])
         with tab5:

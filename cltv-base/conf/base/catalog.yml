@@ -154,3 +154,19 @@ churn_detailed_view_data_for_ui:
 final_rfm_cltv_churn_data:
   type: pandas.ParquetDataset
   filepath: data/04_feature/final_rfm_cltv_churn_data.parquet
+
+calculated_distribution_threshold:
+  type: json.JSONDataset
+  filepath: data/02_intermediate/calculated_distribution_threshold.json
+
+calculated_user_value_threshold:
+  type: json.JSONDataset
+  filepath: data/02_intermediate/calculated_user_value_threshold.json
+
+calculated_ml_threshold:
+  type: json.JSONDataset
+  filepath: data/02_intermediate/calculated_ml_threshold.json
+
+metric_thresholds: # Optional: for a mapping of all thresholds
+  type: json.JSONDataset
+  filepath: data/02_intermediate/metric_thresholds.json

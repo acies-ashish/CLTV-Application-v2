@@ -148,7 +148,7 @@ def perform_rfm_segmentation(
 
     # Calculate FM Score (average of F and M scores, rounded to nearest integer)
     df['fm_score'] = ((df['f_score'] + df['m_score']) / 2).round().astype(int)
-
+    df['rfm_score'] = ((df['r_score'] + df['f_score'] + df['m_score'])).round().astype(int)
     # Apply custom segmentation
     df['segment'] = df.apply(assign_segment, axis=1) # Renamed 'rfm_segment' to 'segment' for consistency with UI
 

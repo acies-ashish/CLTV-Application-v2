@@ -52,3 +52,16 @@ cox_feature_cols:
 rfm_recency_thresholds: [7, 14, 30, 60] # Days: 0-7 (5), 8-14 (4), 15-30 (3), 31-60 (2), >60 (1)
 rfm_frequency_thresholds: [1, 2, 4, 7] # Transactions: 0-1 (1), 2 (2), 3-4 (3), 5-7 (4), >7 (5)
 rfm_monetary_thresholds: [500, 1500, 3000, 7000] # Amount: 0-500 (1), 501-1500 (2), 1501-3000 (3), 3001-7000 (4), >7000 (5)
+
+dummy: "unused"
+
+threshold_metric: recency                  # default value (can be 'frequency', etc)
+inactive_days_threshold: 30                # default value, set as needed
+user_threshold_value: 100                  # default value, set as needed
+selected_threshold_dict: calculated_distribution_threshold   # default for strategy
+
+metrics_supported:
+  - recency
+  - frequency
+  - monetary
+  - rfm_score
