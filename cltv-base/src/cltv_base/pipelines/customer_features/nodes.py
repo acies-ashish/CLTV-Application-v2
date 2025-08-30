@@ -1,67 +1,77 @@
-# src/cltv_base/pipelines/customer_features/nodes.py
-
 import pandas as pd
 from typing import Tuple, List
+import numpy as np
+from typing import Optional, List
 
-# --- Helper functions for new RFM scoring and segmentation ---
-def assign_score(value, thresholds, reverse=False):
+def safe_qcut(s: pd.Series, q: int = 5, labels: Optional[List[int]] = None, ascending: bool = True) -> pd.Series:
     """
-    Assigns a score (1-5) based on a value and predefined thresholds.
-    If reverse is True, higher values get lower scores (e.g., for Recency).
+    Safely assigns quantile scores, handling cases with insufficient unique values.
+    'ascending=False' is used for Recency.
     """
-    if reverse:
-        if value <= thresholds[0]: return 5
-        elif value <= thresholds[1]: return 4
-        elif value <= thresholds[2]: return 3
-        elif value <= thresholds[3]: return 2
-        else: return 1
+    if labels is None:
+        labels = list(range(1, q + 1))
+    
+    unique_values = s.dropna().nunique()
+    
+    # If not enough unique values to create q quantiles,
+    # assign scores using pd.cut with fewer bins.
+    if unique_values < q:
+        bins = min(unique_values, q)
+        # Check if we can create bins, otherwise return a default score
+        if bins < 2:
+            return pd.Series([int(np.ceil(q / 2))] * len(s), index=s.index, dtype=object)
+        
+        # Use pd.cut as a fallback, which is more tolerant of duplicate values
+        scores = pd.cut(s, bins=bins, labels=labels[:bins], include_lowest=True)
+        
+        # Recency (needs special handling)
+        if not ascending:
+            scores = scores.map({label: labels[q-1-i] for i, label in enumerate(scores.cat.categories)})
+            return scores.astype(object)
+            
+        return scores.astype(object)
+    
+    # Normal quantile assignment using pd.qcut
+    if ascending:
+        ranks = s.rank(method='first', ascending=True)
+        scores = pd.qcut(ranks, q, labels=labels).astype(object)
     else:
-        if value <= thresholds[0]: return 1
-        elif value <= thresholds[1]: return 2
-        elif value <= thresholds[2]: return 3
-        elif value <= thresholds[3]: return 4
-        else: return 5
+        # For recency, we need to rank in descending order and then apply qcut
+        ranks = s.rank(method='first', ascending=False)
+        scores = pd.qcut(ranks, q, labels=labels).astype(object)
+    
+    return scores
 
+# --- 7-bucket segment mapping (from your spec) ---
 def assign_segment(row):
     """
     Assigns a customer segment based on R and FM scores.
     """
     r = row['r_score']
-    # Ensure fm_score is calculated before calling this function
-    # For now, assuming fm_score is available in the row
-    fm = row['fm_score'] # This will be calculated as (f_score + m_score) / 2 or similar
+    fm = row['fm_score']
 
-    if (r == 5 and fm == 5) or (r == 5 and fm == 4) or (r == 4 and fm == 5):
+    if r >= 4 and fm == 5:
         return 'Champions'
-    elif (r == 5 and fm == 3) or (r == 4 and fm == 4) or (r == 3 and fm == 5) or (r == 3 and fm == 4):
-        return 'Loyal Customers'
-    elif (r == 5 and fm == 2) or (r == 4 and fm == 2) or (r == 3 and fm == 3) or (r == 4 and fm == 3):
-        return 'Potential Loyalists'
-    elif r == 5 and fm == 1:
-        return 'Recent Customers'
-    elif (r == 4 and fm == 1) or (r == 3 and fm == 1):
-        return 'Promising'
-    elif (r == 3 and fm == 2) or (r == 2 and fm == 3) or (r == 2 and fm == 2):
+    elif r >= 4 and fm >= 4:
+        return 'Potential Champions'
+    elif (r >= 4 and fm == 3) or (r == 3 and fm == 4):
         return 'Customers Needing Attention'
-    elif r == 2 and fm == 1:
+    elif r >= 4 and fm <= 2:
+        return 'Recent Customers'
+    elif r <= 3 and fm >= 3:
+        return 'Loyal Lapsers'
+    elif (r <= 3 and fm <= 2) or (r <= 2 and fm <= 2):
         return 'About to Sleep'
-    elif (r == 2 and fm == 5) or (r == 2 and fm == 4) or (r == 1 and fm == 3):
-        return 'At Risk'
-    elif (r == 1 and fm == 5) or (r == 1 and fm == 4):
-        return "Can't Lose Them"
-    elif r == 1 and fm == 2:
-        return 'Hibernating'
-    elif r == 1 and fm == 1:
+    elif r <= 2 and fm <= 2:
         return 'Lost'
     else:
         return 'Unclassified'
-
-# --- Data Processing Nodes ---
 
 def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataFrame:
     """
     Computes customer-level RFM and other derived features.
     This function acts as a Kedro node.
+    (This part remains unchanged from your original code)
     """
     print("Calculating customer level features...")
     if not all(col in transactions_df.columns for col in ['Purchase Date', 'Total Amount', 'User ID']):
@@ -78,16 +88,14 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
         last_purchase=('Purchase Date', 'max'),
         first_purchase=('Purchase Date', 'min')
     ).reset_index()
-
-    # Ensure 'User ID' is string type after reset_index
+    
     customer_level['User ID'] = customer_level['User ID'].astype(str)
 
     customer_level['aov'] = round(customer_level['monetary'] / customer_level['frequency'], 2)
     
-    # Handle division by zero for avg_days_between_orders for customers with only one purchase
     customer_level['avg_days_between_orders'] = (
         (customer_level['last_purchase'] - customer_level['first_purchase']).dt.days / 
-        (customer_level['frequency'] - 1).replace(0, pd.NA) # Replace 0 with NA to avoid division by zero
+        (customer_level['frequency'] - 1).replace(0, pd.NA)
     )
     valid_avg = customer_level['avg_days_between_orders'][customer_level['avg_days_between_orders'].notna() & (customer_level['avg_days_between_orders'] != float('inf'))]
     median_gap = valid_avg.median() if not valid_avg.empty else 0
@@ -108,20 +116,16 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
     customer_level['CLTV_60d'] = round(customer_level['monetary'] / customer_level['lifespan_60d'].replace(0, 0.1), 2)
     customer_level['CLTV_90d'] = round(customer_level['monetary'] / customer_level['lifespan_90d'].replace(0, 0.1), 2)
     customer_level['CLTV_total'] = customer_level['monetary']
-
+    
     return customer_level
 
-def perform_rfm_segmentation(
-    customer_level_df: pd.DataFrame,
-    rfm_recency_thresholds: List[float],
-    rfm_frequency_thresholds: List[float],
-    rfm_monetary_thresholds: List[float]
-) -> pd.DataFrame:
+# The main function to be changed
+def perform_rfm_segmentation(customer_level_df: pd.DataFrame) -> pd.DataFrame:
     """
-    Performs RFM segmentation on customer-level data using custom scoring and segment rules.
+    Performs RFM segmentation on customer-level data using quantiles for scoring.
     This function acts as a Kedro node.
     """
-    print("Performing RFM segmentation with new rules...")
+    print("Performing RFM segmentation using quantiles...")
     df = customer_level_df.copy()
     
     if df.empty:
@@ -132,29 +136,34 @@ def perform_rfm_segmentation(
             'lifespan_7d', 'lifespan_15d', 'lifespan_30d', 'lifespan_60d',
             'lifespan_90d', 'CLTV_1d', 'CLTV_7d', 'CLTV_15d', 'CLTV_30d',
             'CLTV_60d', 'CLTV_90d', 'CLTV_total', 'r_score', 'f_score',
-            'm_score', 'fm_score', 'rfm_segment', 'CLTV' # Updated column names
+            'm_score', 'fm_score', 'rfm_segment', 'CLTV'
         ])
 
-    # Ensure columns exist before applying scoring
     required_rfm_cols = ['recency', 'frequency', 'monetary']
     if not all(col in df.columns for col in required_rfm_cols):
         print(f"Warning: Missing RFM columns {set(required_rfm_cols) - set(df.columns)}. Cannot perform RFM segmentation. Returning original DataFrame.")
-        return df # Return original if essential columns are missing
+        return df
 
-    # Apply custom scoring
-    df['r_score'] = df['recency'].apply(lambda x: assign_score(x, rfm_recency_thresholds, reverse=True))
-    df['f_score'] = df['frequency'].apply(lambda x: assign_score(x, rfm_frequency_thresholds))
-    df['m_score'] = df['monetary'].apply(lambda x: assign_score(x, rfm_monetary_thresholds))
+    # Apply quantile-based scoring
+    # Recency: higher values (older purchases) get lower scores.
+    # We use ascending=False in safe_qcut.
+    df['r_score'] = safe_qcut(df['recency'], q=5, labels=list(range(5, 0, -1)), ascending=False)
+    
+    # Frequency & Monetary: higher values get higher scores.
+    df['f_score'] = safe_qcut(df['frequency'], q=5, labels=list(range(1, 6)), ascending=True)
+    df['m_score'] = safe_qcut(df['monetary'], q=5, labels=list(range(1, 6)), ascending=True)
+    
+    # Ensure scores are numeric for calculation
+    df['r_score'] = pd.to_numeric(df['r_score'], errors='coerce')
+    df['f_score'] = pd.to_numeric(df['f_score'], errors='coerce')
+    df['m_score'] = pd.to_numeric(df['m_score'], errors='coerce')
 
     # Calculate FM Score (average of F and M scores, rounded to nearest integer)
     df['fm_score'] = ((df['f_score'] + df['m_score']) / 2).round().astype(int)
     df['rfm_score'] = ((df['r_score'] + df['f_score'] + df['m_score'])).round().astype(int)
+    
     # Apply custom segmentation
-    df['segment'] = df.apply(assign_segment, axis=1) # Renamed 'rfm_segment' to 'segment' for consistency with UI
-
-    # Drop the individual R, F, M scores if they are not needed downstream,
-    # but keep them for now as they are used in the segment assignment.
-    # df = df.drop(columns=['R_score', 'F_score', 'M_score', 'RFM_score', 'RFM']) # Old columns to drop if present
+    df['segment'] = df.apply(assign_segment, axis=1)
 
     return df
 
@@ -162,11 +171,12 @@ def calculate_historical_cltv(df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates historical CLTV based on AOV and frequency.
     This function acts as a Kedro node.
+    (This part remains unchanged from your original code)
     """
     print("Calculating historical CLTV...")
     if df.empty or 'aov' not in df.columns or 'frequency' not in df.columns:
         print("Warning: Missing 'aov' or 'frequency' or empty DataFrame for historical CLTV. Returning original DataFrame.")
-        if 'CLTV' not in df.columns: # Ensure CLTV column exists even if calculation skipped
+        if 'CLTV' not in df.columns:
             df['CLTV'] = 0.0
         return df
     df['CLTV'] = df['aov'] * df['frequency']

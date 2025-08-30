@@ -13,7 +13,7 @@ def format_date_with_ordinal(date):
     return f"{day}{suffix} {date.strftime('%B %Y')}"
 
 
-def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, transactions_df: pd.DataFrame) -> Dict[str, float]:
+def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, transactions_df: pd.DataFrame) -> pd.DataFrame:
     """
     Calculates key performance indicators for the insights tab.
     This node processes the full dataset.
@@ -22,12 +22,10 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
     kpis = {}
 
     # Total Revenue (calculated from the full orders_df)
-    if 'Quantity' in orders_df.columns and 'Unit Price' in orders_df.columns:
-        orders_df['Revenue'] = orders_df['Quantity'] * orders_df['Unit Price']
-        kpis['total_revenue'] = float(orders_df['Revenue'].sum())
+    if 'Total Amount' in transactions_df.columns:
+        kpis['total_revenue'] = float(transactions_df['Total Amount'].sum())
     else:
         kpis['total_revenue'] = 0.0
-        print("Warning: Missing 'Quantity' or 'Unit Price' in orders data for Total Revenue KPI.")
 
     # CLTV, AOV, Avg Txns/User (these come from rfm_segmented_df which is based on full data)
     if not rfm_segmented_df.empty and 'aov' in rfm_segmented_df.columns and 'CLTV' in rfm_segmented_df.columns and 'frequency' in rfm_segmented_df.columns:
@@ -55,15 +53,10 @@ def prepare_kpi_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame, tr
     kpis['total_customers'] = int(len(rfm_segmented_df)) # Convert to int
     
     # Calculate Churn Rate (%)
-    if 'predicted_churn' in rfm_segmented_df.columns and not rfm_segmented_df.empty:
-        churned_customers = rfm_segmented_df[rfm_segmented_df['predicted_churn'] == 1].shape[0]
-        total_customers_for_churn = rfm_segmented_df.shape[0]
-        kpis['churn_rate'] = (churned_customers / total_customers_for_churn * 100) if total_customers_for_churn > 0 else 0.0
-    else:
-        kpis['churn_rate'] = 0.0
-        print("Warning: Missing 'predicted_churn' or empty DataFrame for churn rate KPI.")
-
-    return kpis
+    if 'Transaction ID' in transactions_df.columns:
+        kpis['total_orders'] = transactions_df['Transaction ID'].count()
+    kpi_df = pd.DataFrame([kpis])
+    return kpi_df
 
 def prepare_segment_summary_data(rfm_segmented_df: pd.DataFrame) -> pd.DataFrame:
     """
@@ -107,11 +100,9 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     """
     print("Preparing top products by segment data...")
     # Define all possible new segments to ensure all keys are present in the output dictionary
-    all_possible_segments = [
-        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-    ]
+    all_possible_segments = ['Champions', 'Potential Champions', 'Recent Customers', 
+                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost']
+    
     # Initialize with both columns
     top_products_by_segment = {segment: pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue']) for segment in all_possible_segments}
 
@@ -191,11 +182,8 @@ def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> p
         value_name='Average CLTV'
     )
     # Define the order for the new segments for consistent plotting
-    segment_order = [
-        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-    ]
+    segment_order = ['Champions', 'Potential Champions', 'Recent Customers', 
+                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
     segment_melted['segment'] = pd.Categorical(segment_melted['segment'], categories=segment_order, ordered=True)
     return segment_melted.sort_values(by='segment')
 
@@ -208,11 +196,8 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     """
     print("Calculating realization curve data...")
     # Define all possible new segments for consistent output dictionary
-    all_possible_segments = [
-        'Champions', 'Loyal Customers', 'Potential Loyalists', 'Recent Customers',
-        'Promising', 'Customers Needing Attention', 'About to Sleep', 'At Risk',
-        "Can't Lose Them", 'Hibernating', 'Lost', 'Unclassified'
-    ]
+    all_possible_segments = ['Champions', 'Potential Champions', 'Recent Customers', 
+                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
     realization_data = {
         "Overall Average": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"]),
         "All Segments": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
@@ -232,7 +217,7 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
         print(f"Warning: Required columns for realization curve not found: {required_cols - set(df.columns)} or empty orders data. Returning empty dict.")
         return realization_data # Return pre-initialized empty dict for all segments
 
-    df['order_date'] = pd.to_datetime(df['order_date'])
+    df['order_date'] = pd.to_datetime(df['order_date'], dayfirst=True)
     df['revenue'] = df['quantity'] * df['unitprice']
 
     # Use the full orders data for curve calculation

@@ -19,6 +19,7 @@ def register_pipelines() -> Dict[str, Pipeline]:
     # Create an instance of the full assembled pipeline
     # This single call now represents your entire data workflow
     full_project_pipeline = create_full_project_pipeline()
+    
 
     # Register the full pipeline with a descriptive name
     return {
