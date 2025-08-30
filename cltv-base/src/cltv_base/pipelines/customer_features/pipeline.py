@@ -1,5 +1,3 @@
-# src/cltv_base/pipelines/customer_features/pipeline.py
-
 from kedro.pipeline import Pipeline, node
 from .nodes import (
     calculate_customer_level_features,
@@ -16,27 +14,24 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=calculate_customer_level_features,
-                inputs="transactions_typed", # Input from data_processing pipeline
+                inputs="transactions_typed",
                 outputs="customer_level_features",
                 name="calculate_customer_level_features",
             ),
             node(
                 func=perform_rfm_segmentation,
-                inputs=[
-                    "customer_level_features",
-                    "params:rfm_recency_thresholds",    # New input
-                    "params:rfm_frequency_thresholds",  # New input
-                    "params:rfm_monetary_thresholds"    # New input
-                ],
-                outputs="rfm_segmented_customers",
+                # The 'params' inputs for thresholds are removed because the
+                # function now calculates quantiles directly from the data.
+                inputs="customer_level_features",
+                outputs="rfm_segmented_df",
                 name="perform_rfm_segmentation",
             ),
             node(
                 func=calculate_historical_cltv,
-                inputs="rfm_segmented_customers", # Input from previous node in this pipeline
+                inputs="rfm_segmented_df",
                 outputs="historical_cltv_customers",
                 name="calculate_historical_cltv",
             ),
         ],
-        tags="customer_features" # Optional: Add a tag for this pipeline
+        tags="customer_features"
     )

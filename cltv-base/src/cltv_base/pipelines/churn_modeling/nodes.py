@@ -1,4 +1,5 @@
 import pandas as pd
+import numpy as np
 from typing import Tuple, Dict, List, Any
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
@@ -8,18 +9,18 @@ from lifelines import CoxPHFitter
 # -------------------------
 # Supported Metrics
 # -------------------------
-METRICS_SUPPORTED = ['recency', 'frequency', 'monetary', 'rfm_score']
+METRICS_SUPPORTED = 'rfm_score'
 
 # -------------------------
 # Distribution-based Threshold Calculation
 # -------------------------
-def calculate_all_distribution_thresholds(customer_df: pd.DataFrame, metrics: list = None) -> dict:
+def calculate_all_distribution_thresholds(customer_df: pd.DataFrame, metrics: str = None) -> float:
     """
     Calculate 75th percentile after removing top/bottom 10% outliers for all specified metrics.
     Returns a dictionary with {metric}_threshold for each metric.
     """
     if metrics is None:
-        metrics = ['recency', 'frequency', 'monetary', 'rfm_score']
+        metrics = 'rfm_score'
     thresholds = {}
     for metric in metrics:
         if customer_df.empty or metric not in customer_df.columns:
@@ -30,9 +31,9 @@ def calculate_all_distribution_thresholds(customer_df: pd.DataFrame, metrics: li
             lower = values.quantile(0.10)
             upper = values.quantile(0.90)
             filtered = values[(values >= lower) & (values <= upper)]
-            threshold_value = float(filtered.quantile(0.75))
+            threshold_value = float(filtered.quantile(0.25))
             print(f"[INFO] {metric} threshold calculated: {threshold_value:.2f}")
-            thresholds[f"{metric}_threshold"] = threshold_value
+            thresholds = threshold_value
     return thresholds
 
 # -------------------------
@@ -59,34 +60,11 @@ def calculate_ml_based_threshold(customer_df: pd.DataFrame, metric: str) -> dict
 # -------------------------
 # Get Customers At Risk (Generic for any metric)
 # -------------------------
-def get_customers_at_risk(customer_df: pd.DataFrame, threshold_data, metric: str) -> pd.DataFrame:
-    """
-    Select customers above/below the threshold based on metric.
-    """
-    # Safe extraction logic
-    if isinstance(threshold_data, dict):
-        threshold = threshold_data.get(f"{metric}_threshold", 0)
-    elif isinstance(threshold_data, (int, float)):
-        threshold = threshold_data
-    elif isinstance(threshold_data, str):
-        try:
-            threshold = float(threshold_data)
-        except ValueError:
-            threshold = 0
-    else:
-        threshold = 0
+def get_customers_at_risk(customer_df: pd.DataFrame) -> pd.DataFrame:
+    
+    df = customer_df[customer_df['is_churned'] == 1]
+    return df
 
-    df = customer_df.copy()
-    if metric not in df.columns:
-        print(f"[WARN] Metric '{metric}' missing. Can't flag at risk.")
-        return pd.DataFrame()
-    if metric in ['recency']:
-        at_risk_df = df[df[metric] > threshold].copy()
-    else:
-        at_risk_df = df[df[metric] < threshold].copy()
-    at_risk_df['status'] = 'At Risk'
-    print(f"[INFO] {len(at_risk_df)} customers flagged as 'At Risk' by '{metric}'.")
-    return at_risk_df
 
 # -------------------------
 # Label Churned Customers (for any metric)
@@ -98,17 +76,25 @@ def label_churned_customers(customer_df: pd.DataFrame, metric: str, inactive_day
     For 'frequency' and 'monetary', below threshold = churned.
     """
     df = customer_df.copy()
-    if df.empty or metric not in df.columns:
-        print(f"[WARN] Missing '{metric}'. Setting is_churned=0 for all.")
-        df['is_churned'] = 0
-        return df
-    if metric in ['recency', 'rfm_score']:
-        df['is_churned'] = (df[metric] > inactive_days_threshold).astype(int)
-    else:
-        df['is_churned'] = (df[metric] < inactive_days_threshold).astype(int)
+    # --- Start of the fix ---
+    # Check if the 'metric' parameter is passed as a list, as often happens in Kedro pipelines
+    # from the parameters.yml file.
+
+    
+        # If 'metric' is already a string, use it directly
+    metric_name = metric
+    # --- End of the fix ---
+
+    # Get the specific threshold value for the chosen metric
+    threshold_value = inactive_days_threshold
+
+    df['is_churned'] = (df[metric_name] < threshold_value).astype(int)
+        
     churned_count = df['is_churned'].sum()
-    print(f"[INFO] Labeled {churned_count} customers as churned by '{metric}'.")
+    print(f"[INFO] Labeled {churned_count} customers as churned by '{metric_name}' with the threshold {threshold_value}.")
+    print("columns name", df.columns)
     return df
+
 
 # -------------------------
 # Feature & Label Extraction, Model Training, Prediction — (unchanged from your code)
@@ -119,7 +105,7 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
     df = customer_df.set_index('User ID', drop=False)
     feature_cols = [
         'frequency', 'monetary', 'aov',
-        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d'
+        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d', 'recency', 'is_churned'
     ]
     available_cols = [c for c in feature_cols if c in df.columns]
     if len(available_cols) < len(feature_cols):
@@ -131,10 +117,31 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
 def train_churn_prediction_model(
     X: pd.DataFrame, y: pd.DataFrame, n_estimators: int, random_state: int
 ) -> Tuple[RandomForestClassifier, Dict, List, pd.DataFrame, pd.DataFrame]:
+    """
+    Trains a RandomForestClassifier model for churn prediction.
+
+    Args:
+        X: Feature data DataFrame.
+        y: Target label DataFrame (churn status).
+        n_estimators: The number of trees in the forest.
+        random_state: Controls the randomness of the model.
+
+    Returns:
+        A tuple containing the trained model, a classification report, feature importances,
+        the test features, and the test labels.
+    """
     if X.empty or y.empty:
         print("[WARN] Empty features or labels. Returning dummy model.")
         dummy_model = RandomForestClassifier(n_estimators=1, random_state=random_state)
         return dummy_model, {}, [], pd.DataFrame(), pd.DataFrame()
+    
+    # Check if the target variable has more than one unique class.
+    # If not, the model cannot be trained for binary classification.
+    if y.nunique().max() < 2:
+        print("[WARN] The target variable 'y' contains only a single class. The model will not be able to predict churn.")
+        dummy_model = RandomForestClassifier(n_estimators=1, random_state=random_state)
+        return dummy_model, {}, [], X, y
+        
     X_train, X_test, y_train, y_test = train_test_split(
         X, y, test_size=0.4, random_state=random_state
     )
@@ -145,13 +152,44 @@ def train_churn_prediction_model(
     return model, report, importances, X_test, y_test
 
 def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) -> pd.DataFrame:
+    """
+    Calculates churn probabilities for a given dataset using a trained model.
+
+    Args:
+        model: A trained RandomForestClassifier model.
+        X: The input data DataFrame to predict on.
+
+    Returns:
+        A DataFrame with 'User ID' and the 'predicted_churn_prob'.
+    """
+    # If the input DataFrame is empty, return an empty DataFrame with the correct columns.
     if X.empty:
         return pd.DataFrame(columns=['User ID', 'predicted_churn_prob'])
-    probs = model.predict_proba(X)[:, 1]
-    return pd.DataFrame({
-        'User ID': X.index.astype(str),
+
+    try:
+        # Attempt to get the probability of the 'churn' class (index 1).
+        # This is the standard case for binary classification.
+        probs = model.predict_proba(X)[:, 1]
+    except IndexError:
+        # This block is executed if predict_proba() returns only one column.
+        # This happens if the model was trained on a single class.
+        print("Warning: Model was trained on a single class. Predicting probabilities accordingly.")
+        
+        # Check if the model's only known class is the 'churn' class (1).
+        if model.classes_[0] == 1:
+            # If so, the single column contains the churn probability.
+            probs = model.predict_proba(X)[:, 0]
+        else:
+            # If the only known class is 'non-churn' (0), the probability of churn is 0 for all samples.
+            probs = np.zeros(len(X))
+
+    # Create a DataFrame to hold the results.
+    predictions = pd.DataFrame(data={
+        'User ID': X.index,  # Assuming User ID is the index of the DataFrame
         'predicted_churn_prob': probs
     })
+
+    return predictions
 
 def assign_predicted_churn_labels(predicted_churn_prob: pd.DataFrame, threshold: float) -> pd.DataFrame:
     if predicted_churn_prob.empty:
@@ -162,21 +200,15 @@ def assign_predicted_churn_labels(predicted_churn_prob: pd.DataFrame, threshold:
     ).astype(int)
     return predicted_churn_prob[['User ID', 'predicted_churn']]
 
-def prepare_survival_data(customer_df: pd.DataFrame, churn_inactive_days_threshold: int) -> pd.DataFrame:
+def train_cox_survival_model(customer_df: pd.DataFrame, feature_col: List[str]) -> Tuple[CoxPHFitter, pd.DataFrame]:
     df = customer_df.copy()
-    if df.empty or 'lifespan_1d' not in df.columns or 'recency' not in df.columns:
-        return pd.DataFrame()
-    df['duration'] = df['lifespan_1d']
-    df['event'] = (df['recency'] > churn_inactive_days_threshold).astype(int)
-    return df
-
-def train_cox_survival_model(customer_df: pd.DataFrame, feature_cols: List[str]) -> Tuple[CoxPHFitter, pd.DataFrame]:
-    df = customer_df.copy()
-    required_cols = feature_cols + ['duration', 'event']
+    
+    required_cols = feature_col + ['lifespan_1d', 'is_churned']
     if df.empty or not all(col in df.columns for col in required_cols):
         print("[WARN] Missing survival model columns.")
         return CoxPHFitter(), df
     cph = CoxPHFitter()
-    cph.fit(df[required_cols], duration_col='duration', event_col='event')
-    df['expected_active_days'] = cph.predict_expectation(df[feature_cols]).round(0).astype(int)
+    cph.fit(df[required_cols], duration_col='lifespan_1d', event_col='is_churned')
+    df['expected_active_days'] = cph.predict_expectation(df[feature_col]).round(0).astype(int)
+    df.to_csv("expected_active_days.csv", index=False)
     return cph, df

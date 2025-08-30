@@ -3,13 +3,12 @@ from .nodes import (
     calculate_all_distribution_thresholds,
     calculate_user_value_threshold,
     calculate_ml_based_threshold,
-    get_customers_at_risk,
     label_churned_customers,
     get_churn_features_labels,
     train_churn_prediction_model,
     predict_churn_probabilities,
+    get_customers_at_risk,
     assign_predicted_churn_labels,
-    prepare_survival_data,
     train_cox_survival_model
 )
 
@@ -25,6 +24,9 @@ def create_pipeline(**kwargs) -> Pipeline:
     """
     return Pipeline([
         # Choose threshold calculation method and metric using params
+        # Decide which threshold to use via parameters (handled dynamically in pipeline run, see catalog config)
+        # downstream nodes take the proper threshold dict as input
+        
         node(
             func=calculate_all_distribution_thresholds,
             inputs=["historical_cltv_customers", "params:threshold_metric"],
@@ -44,24 +46,21 @@ def create_pipeline(**kwargs) -> Pipeline:
             outputs="calculated_ml_threshold",
             name="calculate_ml_based_threshold"
         ),
-        # Decide which threshold to use via parameters (handled dynamically in pipeline run, see catalog config)
-        # downstream nodes take the proper threshold dict as input
-        node(
-            func=get_customers_at_risk,
-            inputs=[
-                "historical_cltv_customers",
-                "params:selected_threshold_dict",  # dynamically chosen: distribution/user/ml
-                "params:threshold_metric"
-            ],
-            outputs="customers_at_risk_df",
-            name="get_customers_at_risk"
-        ),
+        
         node(
             func=label_churned_customers,
-            inputs=["historical_cltv_customers", "params:threshold_metric", "params:inactive_days_threshold"],
+            inputs=["historical_cltv_customers", "params:threshold_metric", "calculated_distribution_threshold"],
             outputs="churn_labeled_customers",
             name="label_churned_customers"
         ),
+
+        node(
+            func=get_customers_at_risk,
+            inputs="churn_labeled_customers",
+            outputs="customers_at_risk_df",
+            name="get_customers_at_risk"
+        ),
+
         node(
             func=get_churn_features_labels,
             inputs="churn_labeled_customers",
@@ -93,14 +92,8 @@ def create_pipeline(**kwargs) -> Pipeline:
             name="assign_predicted_churn_labels"
         ),
         node(
-            func=prepare_survival_data,
-            inputs=["historical_cltv_customers", "params:inactive_days_threshold"],
-            outputs="survival_data",
-            name="prepare_survival_data"
-        ),
-        node(
             func=train_cox_survival_model,
-            inputs=["survival_data", "params:cox_feature_cols"],
+            inputs=["churn_labeled_customers", "params:cox_feature_cols"],
             outputs=["cox_survival_model", "cox_predicted_active_days"],
             name="train_cox_survival_model"
         ),
