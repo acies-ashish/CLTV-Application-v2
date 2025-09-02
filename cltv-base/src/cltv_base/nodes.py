@@ -1,6 +1,3 @@
-# src/cltv_base/nodes.py
-# This file will contain general utility nodes not specific to a domain pipeline.
-
 import pandas as pd
 from typing import Dict
 

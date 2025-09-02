@@ -1,13 +1,11 @@
-# streamlit_app.py (Place this in the root of your Kedro project)
-
 import streamlit as st
 import pandas as pd
 import numpy as np
 import os
 from pathlib import Path
-import shutil # Needed for copying sample files to the fixed input location
-import plotly.express as px # Keep plotly for chart rendering
-import json # For loading JSON datasets
+import shutil 
+import plotly.express as px 
+import json
 from typing import Dict
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
@@ -16,7 +14,7 @@ from plotly.subplots import make_subplots
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
-# Define paths based on Kedro's data structure at the top level
+# Defined paths based on Kedro's data structure at the top level
 KEDRO_PROJECT_ROOT = Path(__file__).parent
 DATA_00_EXTERNAL = KEDRO_PROJECT_ROOT / "data" / "00_external"
 DATA_01_RAW = KEDRO_PROJECT_ROOT / "data" / "01_raw"
@@ -39,7 +37,7 @@ FIXED_TRANSACTIONS_RAW_PATH = DATA_00_EXTERNAL / "current_transactions_data.csv"
 SAMPLE_ORDER_PATH = DATA_01_RAW / "Orders_v2.csv"
 SAMPLE_TRANS_PATH = DATA_01_RAW / "Transactional.csv"
 
-# Bootstrap Kedro project once
+
 bootstrap_project(KEDRO_PROJECT_ROOT)
 
 @st.cache_data(show_spinner=False)
@@ -54,7 +52,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
             session.run(pipeline_name="full_pipeline") 
             
             ui_data = {}
-            # The rfm_segmented key now loads the combined final customer data
             ui_data['rfm_segmented'] = context.catalog.load("final_rfm_cltv_churn_data") 
             ui_data['kpi_data'] = context.catalog.load("kpi_data_for_ui")
             ui_data['segment_summary'] = context.catalog.load("segment_summary_data_for_ui")
@@ -68,7 +65,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['churn_detailed_view'] = context.catalog.load("churn_detailed_view_data_for_ui")
             ui_data['customers_at_risk'] = context.catalog.load("customers_at_risk_df")
             # ui_data['recency_threshold'] = context.catalog.load("calculated_at_risk_threshold")
-            # Also load the original orders and transactions data if needed for UI functions that directly use them
             ui_data['df_orders_merged'] = context.catalog.load("orders_merged_with_user_id")
             ui_data['df_transactions_typed'] = context.catalog.load("transactions_typed")
             ui_data['calculated_distribution_threshold'] = context.catalog.load("calculated_distribution_threshold")
@@ -92,7 +88,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
         return None
 
 
-# Helper function to add ordinal suffix (copied from nodes.py)
+# date formater
 def format_date_with_ordinal(date):
     if pd.isna(date):
         return "N/A"
@@ -100,7 +96,7 @@ def format_date_with_ordinal(date):
     suffix = 'th' if 11 <= day <= 13 else {1: 'st', 2: 'nd', 3: 'rd'}.get(day % 10, 'th')
     return f"{day}{suffix} {date.strftime('%B %Y')}"
 
-# --- Streamlit UI Rendering Functions (No calculations here) ---
+# --- Streamlit UI Rendering Functions  ---
 
 def kpi_card(title, value, color="black"):
     st.markdown(f"""
@@ -139,7 +135,6 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     with row1_kpis[2]: kpi_card("Total Orders", f"{total_Orders:.0f}", color="black")
     
     
-    # Add a small vertical space between rows
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
     row2_kpis = st.columns(3, gap="small")
@@ -149,18 +144,16 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
 
 
     st.divider()
-    st.subheader("Segment Visuals") # Changed from 'Visual Insights'
+    st.subheader("Segment Visuals")
 
-    # Define a minimalist color palette for the new 11 segments
     segment_colors = {
-        'Champions': '#264D72', 
-        'Potential Champions': '#446B90', 
-        'Recent Customers': '#4A8FE4', #(Vibrant Blue)
-        'Customers Needing Attention': '#63B8B8', #(Soft Cyan)
-        'Loyal Lapsers': '#A2B9BC', #(Cool Gray)
-        'About to Sleep': '#C1A7E1',  #(Muted Lavender)
-        'Lost': '#7D5BA6', #(Plum)
-        'Unclassified': '#D1D5DB' # Light Grey
+        "Champions": "rgba(218, 165, 32, 1.0)",
+        "Potential Champions": "rgba(60, 179, 113, 1.0)",
+        "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+        "Recent Customers": "rgba(70, 130, 180, 1.0)",
+        "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+        "About to Sleep": "rgba(255, 99, 71, 1.0)",
+        "Lost": "rgba(128, 128, 128, 1.0)"
     }
 
     # Define segment order and descriptions at the start of the function
@@ -179,12 +172,11 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     }
 
 
-    # Assuming segment_order_display and segment_summary_data are pre-defined
-# and segment_colors is a dictionary mapping segment names to colors.
+    
     if not segment_counts_data.empty:
         st.markdown("#### Customer Segment Distribution")
 
-# Use st.columns for chart and description side-by-side
+
         col_chart, col_description = st.columns([0.6, 0.4]) # Adjust ratio as needed
         with col_chart:
             fig1 = px.pie(
@@ -206,6 +198,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                 "Select a segment to view its description:",
                 options=segment_order_display,
                 key="segment_description_selector")
+            
 # Display the description for the selected segment
             if selected_segment_for_desc:
                 description = segment_descriptions.get(selected_segment_for_desc, "Description not available.")
@@ -571,14 +564,13 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
 
                 # Use the broader segment_colors for consistent coloring
                 color_map = {
-                        'Champions': '#264D72', #(Dark Midnight Blue)
-                        'Potential Champions': '#446B90', #(Deep Teal)
-                        'Recent Customers': '#4A8FE4', #(Vibrant Blue)
-                        'Customers Needing Attention': '#63B8B8', #(Soft Cyan)
-                        'Loyal Lapsers': '#A2B9BC', #(Cool Gray)
-                        'About to Sleep': '#C1A7E1',  #(Muted Lavender)
-                        'Lost': '#7D5BA6', #(Plum)
-                        'Unclassified': '#D1D5DB' # Light Grey # Black for overall average
+                        "Champions": "rgba(218, 165, 32, 1.0)",
+                        "Potential Champions": "rgba(60, 179, 113, 1.0)",
+                        "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+                        "Recent Customers": "rgba(70, 130, 180, 1.0)",
+                        "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+                        "About to Sleep": "rgba(255, 99, 71, 1.0)",
+                        "Lost": "rgba(128, 128, 128, 1.0)"
                 }
 
                 fig = px.line(
@@ -695,14 +687,13 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
     # Use the same color map as defined for the pie chart and segment cards
     segment_colors_churn = {
-                        'Champions': '#264D72', #(Dark Midnight Blue)
-                        'Potential Champions': '#446B90', #(Deep Teal)
-                        'Recent Customers': '#4A8FE4', #(Vibrant Blue)
-                        'Customers Needing Attention': '#63B8B8', #(Soft Cyan)
-                        'Loyal Lapsers': '#A2B9BC', #(Cool Gray)
-                        'About to Sleep': '#C1A7E1',  #(Muted Lavender)
-                        'Lost': '#7D5BA6', #(Plum)
-                        'Unclassified': '#D1D5DB', # Light Grey
+                        "Champions": "rgba(218, 165, 32, 1.0)",
+                        "Potential Champions": "rgba(60, 179, 113, 1.0)",
+                        "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+                        "Recent Customers": "rgba(70, 130, 180, 1.0)",
+                        "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+                        "About to Sleep": "rgba(255, 99, 71, 1.0)",
+                        "Lost": "rgba(128, 128, 128, 1.0)"
     }
 
     
@@ -767,13 +758,19 @@ def _segments_in_order(df: pd.DataFrame):
 
 def _list_pairs(migration_by_pair: dict, period_freq: str):
     pairs = []
-    if not migration_by_pair:
+    # Check if migration_by_pair is a DataFrame and if it's empty
+    if isinstance(migration_by_pair, pd.DataFrame) and migration_by_pair.empty:
         return pairs
-    for (cp, np_) in migration_by_pair.keys():
-        cpp = cp if isinstance(cp, pd.Period) else pd.Period(str(cp), period_freq)
-        npp = np_ if isinstance(np_, pd.Period) else pd.Period(str(np_), period_freq)
-        pairs.append((str(cpp), str(npp)))
-    pairs.sort(key=lambda t: (pd.Period(t[0], period_freq), pd.Period(t[1], period_freq)))
+    # Check if it's an empty dictionary
+    elif isinstance(migration_by_pair, dict) and not migration_by_pair:
+        return pairs
+    
+    # Iterate through the dictionary keys, which are the (cp, np_) tuples
+    for pair_tuple in migration_by_pair.keys():
+        pairs.append(pair_tuple)
+    
+    # Sort the pairs to ensure chronological order in the dropdown
+    pairs.sort()
     return pairs
 
 def _filter_moved_for_pair(rfm_df, current_period, next_period, from_seg, to_seg, period_col, period_freq):
@@ -839,15 +836,19 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     # Pick data by frequency
     if freq.startswith("Monthly"):
         rfm_df = monthly_rfm.copy()
-        pairs = _list_pairs(monthly_pairs, "M")
+        pairs = _list_pairs(monthly_pairs, "M") # This now returns a list of tuples
         pair_dict = monthly_pairs
         period_col = "month"; period_freq = "M"
     else:
         rfm_df = quarterly_rfm.copy()
-        pairs = _list_pairs(quarterly_pairs, "Q")
+        pairs = _list_pairs(quarterly_pairs, "Q") # This now returns a list of tuples
         pair_dict = quarterly_pairs
         period_col = "quarter"; period_freq = "Q"
 
+    if not pairs:
+        st.warning("No period pairs found in the data.")
+        return
+    
     if rfm_df is None or rfm_df.empty or not pairs:
         st.info("No migration pairs available. Run the pipeline on enough periods first.")
         return
@@ -857,9 +858,18 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     # Place the remaining selectors in a single row
     c1, c2, c3 = st.columns([1.6, 1, 1], gap="small")
     with c1:
+        # Correctly format the tuples for display in the selectbox
+        # We need to handle `pd.Period` objects gracefully
+        display_labels = []
+        for cp, np_ in pairs:
+            # Handle potential string or Period objects
+            cp_str = str(cp) if not isinstance(cp, pd.Period) else cp.to_timestamp().strftime('%Y-%m')
+            np_str = str(np_) if not isinstance(np_, pd.Period) else np_.to_timestamp().strftime('%Y-%m')
+            display_labels.append(f"{cp_str} → {np_str}")
+
         pair_label = st.selectbox(
             "Period Pair",
-            [f"{cp} → {np_}" for cp, np_ in pairs],
+            display_labels, # The correctly formatted labels
             key="mig_pair"
         )
     with c2:
@@ -869,6 +879,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
 
     cp, np_ = pair_label.split(" → ")
 
+
     # ----------------- MAIN CONTENT -----------------
     # Drilldown table
     #st.markdown("### Drilldown (Who moved?)")
@@ -876,6 +887,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
         moved = _filter_moved_for_pair(rfm_df, cp, np_, from_seg, to_seg, period_col, period_freq)
         if not moved.empty:
             st.dataframe(moved)
+    
     
     #st.write(f"**{from_seg} → {to_seg}** for **{cp} → {np_}**")
     #st.dataframe(moved, use_container_width=True, height=280)
@@ -888,6 +900,62 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
         mime="text/csv",
     )
 
+    # ---- Bar chart --------
+    st.markdown("### Customer Distribution by Segment")
+    key = pair_key(pair_dict, cp, np_, period_freq)
+    # Dropdown to select the previous segment
+    from_seg = st.selectbox(
+        "Select Previous Segment:",
+        seg_list,
+        key="bar_chart_from_seg"
+    )
+
+    # Get the counts for the selected previous segment
+    counts = pair_dict[key]['counts'].reindex(index=seg_list, columns=seg_list).fillna(0).astype(int)
+    segment_counts = counts.loc[from_seg]
+
+    # Calculate the percentage distribution
+    total = segment_counts.sum()
+    if total > 0:
+        segment_distribution = (segment_counts / total).mul(100).round(1).astype(str) + '%'
+        
+        # Create a DataFrame for plotting
+        plot_df = pd.DataFrame({
+            'Next Segment': segment_counts.index,
+            'Customer Count': segment_counts.values,
+            'Percentage': (segment_counts / total).values
+        })
+
+        # Filter out segments with 0 customers for a cleaner chart
+        plot_df = plot_df[plot_df['Customer Count'] > 0]
+
+        # Use Plotly Express to create the bar chart
+        fig = px.bar(
+            plot_df,
+            x='Next Segment',
+            y='Customer Count',
+            color='Next Segment', # Color the bars by segment
+            text='Percentage',
+            title=f"Distribution of Customers from **{from_seg}** ({cp}) to Next Segments ({np_})",
+            labels={
+                "Next Segment": f"Next Segment ({np_})",
+                "Customer Count": "Number of Customers"
+            }
+        )
+        
+        fig.update_traces(texttemplate='%{y}', textposition='outside')
+        
+        # Customize the layout for better readability
+        fig.update_layout(
+            xaxis_title=f"Next Segment ({np_})",
+            yaxis_title="Number of Customers",
+            font=dict(size=14, color="black"),
+            showlegend=False,
+            margin=dict(l=0, r=0, t=30, b=10),
+            height=450,
+            width=350 # Legend is redundant since x-axis labels are clear
+        )
+    st.plotly_chart(fig, use_container_width=True)
     # Heatmap for this pair (row-wise %)
     st.markdown("### Heatmap (Row-wise % for selected pair)")
     key = pair_key(pair_dict, cp, np_, period_freq)
@@ -902,6 +970,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
         mat.values, x=mat.columns, y=mat.index, aspect="auto",
         color_continuous_scale="Blues", origin="upper"
     )
+
     fig_hm.update_traces(
         text=np.round(mat.values * 100).astype(int),
         texttemplate="%{text}%",
@@ -911,14 +980,30 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     fig_hm.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=520)
     st.plotly_chart(fig_hm, use_container_width=True)
 
-    # Sankey for this pair with segment filter
-    st.markdown("### Sankey (filter segments)")
+    
+        # --- START OF SANKEY CODE BLOCK ---
+    seg_list = ['Champions', 'Potential Champions', 'Recent Customers', 
+                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
+    segment_palette = {
+    "Champions": "rgba(218, 165, 32, 1.0)",
+    "Potential Champions": "rgba(60, 179, 113, 1.0)",
+    "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+    "Recent Customers": "rgba(70, 130, 180, 1.0)",
+    "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+    "About to Sleep": "rgba(255, 99, 71, 1.0)",
+    "Lost": "rgba(128, 128, 128, 1.0)" 
+    }
+
+   
     sel = st.multiselect(
         "Show ONLY flows involving these segments (either side):",
         seg_list,
         default=seg_list
     )
 
+    
+
+    # --- Data Preparation for Sankey Chart ---
     counts = pair_dict[key]['counts'].reindex(index=seg_list, columns=seg_list).fillna(0).astype(int)
     S = len(seg_list)
     labels = [f"{s} ({cp})" for s in seg_list] + [f"{s} ({np_})" for s in seg_list]
@@ -929,18 +1014,59 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
             v = int(counts.iloc[i, j])
             if v <= 0:
                 continue
+            
             if s_from not in sel and s_to not in sel:
                 continue
             source.append(i)
             target.append(S + j)
             value.append(v)
 
+    # --- Color Assignment Logic ---
+   
+    node_colors = [segment_palette.get(s, 'black') for s in seg_list] * 2
+
+    # Get a list of colors for each link based on the source node's segment
+    # This is the core fix for the ordering problem
+    y_positions = [1 - (i / (S - 1)) for i in range(S)]
+    node_y = y_positions + y_positions
+    # For robustness, add a small epsilon to avoid 0.0 or 1.0 which can cause issues
+    node_y = [pos if pos not in [0.0, 1.0] else (0.0001 if pos == 0.0 else 0.9999) for pos in node_y]
+
+    link_colors = []
+    for i in range(len(source)):
+        source_index = source[i]
+        source_segment_name = seg_list[source_index]
+        link_color = segment_palette.get(source_segment_name, 'rgba(200, 200, 200, 0.4)')
+        # Make the link color semi-transparent
+        link_colors.append(link_color.replace('1.0', '0.4'))
+
+    # --- Sankey Chart Creation ---
     if value:
         fig = go.Figure(go.Sankey(
-            node=dict(label=labels, pad=18, thickness=18),
-            link=dict(source=source, target=target, value=value)
+            node=dict(
+                label=labels,
+                pad=15,
+                thickness=10,
+                color=node_colors,
+                #font=dict(size=15, color="black"),
+                line=dict(color="black", width=0.5),
+                hovertemplate="Segment: %{label}<br>Count: %{value}<extra></extra>",
+                y=node_y
+            ),
+            link=dict(
+                source=source,
+                target=target,
+                value=value,
+                color=link_colors,
+                hovertemplate="From: %{source.label}<br>To: %{target.label}<br>Count: %{value}<extra></extra>"
+            )
         ))
-        fig.update_layout(margin=dict(l=0, r=0, t=30, b=0), height=520)
+        fig.update_layout(
+            title="Customer Migration Flow",
+            font=dict(size=15, color="white"),
+            margin=dict(l=0, r=0, t=30, b=0),
+            height=520
+        )
         st.plotly_chart(fig, use_container_width=True)
     else:
         st.info("No links to display with the current selection.")
@@ -950,14 +1076,6 @@ def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard")
 
-    # # --- Load custom CSS ---
-    # # This assumes .streamlit/style.css exists in the same directory as streamlit_app.py
-    # try:
-    #     with open(KEDRO_PROJECT_ROOT / ".streamlit" / "style.css") as f:
-    #         st.markdown(f"<style>{f.read()}</style>", unsafe_allow_html=True)
-    # except FileNotFoundError:
-    #     st.warning("Could not find .streamlit/style.css. Default Streamlit font will be used.")
-    # # --- End custom CSS load ---
 
 
     if 'ui_data' not in st.session_state:
@@ -1034,56 +1152,6 @@ def run_streamlit_app():
         with tab4:
             show_realization_curve_ui(ui_data['realization_curve'])
         with tab5:
-            # --- Add THIS block before calling show_detailed_view_ui() in tab5 ---
-                # THRESHOLD_METRICS = ['recency', 'frequency', 'monetary', 'rfm_score']
-                # THRESHOLD_STRATEGIES = [
-                #     'Distribution based (75th percentile)',
-                #     'User set value',
-                #     'ML-based (future)'
-                # ]
-
-                # col1, col2 = st.columns(2)
-                # with col1:
-                #     selected_metric = st.selectbox(
-                #         "Select metric for thresholding:",
-                #         THRESHOLD_METRICS,
-                #         index=0,
-                #         key="metric_select"
-                #     )
-                # with col2:
-                #     selected_strategy = st.selectbox(
-                #         "Choose thresholding method:",
-                #         THRESHOLD_STRATEGIES,
-                #         index=0,
-                #         key="strategy_select"
-                #     )
-
-                # user_threshold_value = st.number_input(
-                #     f"Set your custom {selected_metric} threshold:",
-                #     min_value=0.0, value=30.0, step=1.0,
-                #     disabled=(selected_strategy != 'User set value'),
-                #     key="custom_threshold"
-                # )
-
-                # # --- Determine the correct threshold value ---
-                # distribution_threshold = ui_data.get("calculated_distribution_threshold", {})
-                # ml_based_threshold = ui_data.get("calculated_ml_threshold", {})
-                # #recency_threshold = ui_data.get("recency_threshold", {})  # legacy/compat
-
-                # if selected_strategy == 'Distribution based (75th percentile)':
-                #     if isinstance(distribution_threshold, dict):
-                #         threshold_value = distribution_threshold.get(f"{selected_metric}_threshold", 0)
-                #     else:
-                #         threshold_value = distribution_threshold
-                # elif selected_strategy == 'User set value':
-                #     threshold_value = user_threshold_value
-                # elif selected_strategy == 'ML-based (future)':
-                #     if isinstance(ml_based_threshold, dict):
-                #         threshold_value = ml_based_threshold.get(f"{selected_metric}_threshold", 0)
-                #     else:
-                #         threshold_value = ml_based_threshold
-                # else:
-                #     threshold_value = 0
 
             show_detailed_view_ui(
                 ui_data['rfm_segmented'],

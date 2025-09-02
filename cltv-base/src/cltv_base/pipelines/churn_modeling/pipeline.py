@@ -23,9 +23,6 @@ def create_pipeline(**kwargs) -> Pipeline:
     - Trains survival model for churn time prediction
     """
     return Pipeline([
-        # Choose threshold calculation method and metric using params
-        # Decide which threshold to use via parameters (handled dynamically in pipeline run, see catalog config)
-        # downstream nodes take the proper threshold dict as input
         
         node(
             func=calculate_all_distribution_thresholds,

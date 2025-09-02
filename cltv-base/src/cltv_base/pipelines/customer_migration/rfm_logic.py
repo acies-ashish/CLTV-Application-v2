@@ -102,17 +102,49 @@ def compute_rfm_for_period(
 # --- Migrations (per pair) ---
 def build_migration_by_period_pair(rfm_period_df: pd.DataFrame, customer_col: str, period_col: str):
     df = rfm_period_df.sort_values([customer_col, period_col]).copy()
-    df['next_period']  = df.groupby(customer_col)[period_col].shift(-1)
-    df['next_segment'] = df.groupby(customer_col)['Segment'].shift(-1)
+    
+    
+    df['transactions'] = df['Frequency']
+    df['aov'] = df['Monetary'] / df['Frequency']
+    
+    
+    df['next_period']       = df.groupby(customer_col)[period_col].shift(-1)
+    df['next_segment']      = df.groupby(customer_col)['Segment'].shift(-1)
+    df['next_transactions'] = df.groupby(customer_col)['transactions'].shift(-1)
+    df['next_monetary']     = df.groupby(customer_col)['Monetary'].shift(-1)
+    df['next_aov']          = df.groupby(customer_col)['aov'].shift(-1)
+    
+    
     trans = df.dropna(subset=['next_period', 'next_segment'])
-
+    
     out = {}
     for (cp, np_), g in trans.groupby([period_col, 'next_period']):
         counts = pd.crosstab(g['Segment'], g['next_segment'])
         perc   = counts.div(counts.sum(axis=1).replace(0, np.nan), axis=0).fillna(0).round(4)
-        out[(cp, np_)] = {'counts': counts, 'percent': perc}
-    out = pd.DataFrame(out)
-    out.to_csv("customer_migration.csv", index=False)
+        start_period_metrics = g.groupby('Segment').agg(
+            transactions_count=('transactions', 'sum'),
+            total_monetary=('Monetary', 'sum')
+        ).assign(aov=lambda x: x['total_monetary'] / x['transactions_count'])
+
+        # Correct calculation for end period metrics using 'next' columns
+        end_period_metrics = g.groupby('next_segment').agg(
+            transactions_count=('next_transactions', 'sum'),
+            total_monetary=('next_monetary', 'sum')
+        ).assign(aov=lambda x: x['total_monetary'] / x['transactions_count'])
+
+        # Calculate percentages for transactions
+        start_total_transactions = start_period_metrics['transactions_count'].sum()
+        start_period_metrics['transactions_percent'] = (start_period_metrics['transactions_count'] / start_total_transactions * 100).round(2)
+        
+        end_total_transactions = end_period_metrics['transactions_count'].sum()
+        end_period_metrics['transactions_percent'] = (end_period_metrics['transactions_count'] / end_total_transactions * 100).round(2)
+
+        out[(cp, np_)] = {
+            'counts': counts, 
+            'percent': perc, 
+            'start_period_metrics': start_period_metrics,
+            'end_period_metrics': end_period_metrics
+        }
     return out
 
 def list_available_period_pairs(migration_by_pair, period_freq: str):

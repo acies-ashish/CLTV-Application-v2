@@ -1,12 +1,8 @@
-# src/cltv_base/pipeline_registry.py
-
 """Project pipelines."""
 from typing import Dict
 
 from kedro.pipeline import Pipeline
 
-# Import the main pipeline creation function from cltv_base.pipeline
-# This function already assembles all your sub-pipelines
 from cltv_base.pipeline import create_pipeline as create_full_project_pipeline
 
 

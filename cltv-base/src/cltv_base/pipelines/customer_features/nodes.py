@@ -13,8 +13,7 @@ def safe_qcut(s: pd.Series, q: int = 5, labels: Optional[List[int]] = None, asce
     
     unique_values = s.dropna().nunique()
     
-    # If not enough unique values to create q quantiles,
-    # assign scores using pd.cut with fewer bins.
+    
     if unique_values < q:
         bins = min(unique_values, q)
         # Check if we can create bins, otherwise return a default score
@@ -42,7 +41,7 @@ def safe_qcut(s: pd.Series, q: int = 5, labels: Optional[List[int]] = None, asce
     
     return scores
 
-# --- 7-bucket segment mapping (from your spec) ---
+# --- 7-bucket segment mapping ---
 def assign_segment(row):
     """
     Assigns a customer segment based on R and FM scores.
@@ -119,7 +118,7 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
     
     return customer_level
 
-# The main function to be changed
+
 def perform_rfm_segmentation(customer_level_df: pd.DataFrame) -> pd.DataFrame:
     """
     Performs RFM segmentation on customer-level data using quantiles for scoring.
@@ -144,16 +143,12 @@ def perform_rfm_segmentation(customer_level_df: pd.DataFrame) -> pd.DataFrame:
         print(f"Warning: Missing RFM columns {set(required_rfm_cols) - set(df.columns)}. Cannot perform RFM segmentation. Returning original DataFrame.")
         return df
 
-    # Apply quantile-based scoring
-    # Recency: higher values (older purchases) get lower scores.
-    # We use ascending=False in safe_qcut.
-    df['r_score'] = safe_qcut(df['recency'], q=5, labels=list(range(5, 0, -1)), ascending=False)
     
-    # Frequency & Monetary: higher values get higher scores.
+    df['r_score'] = safe_qcut(df['recency'], q=5, labels=list(range(5, 0, -1)), ascending=False)
     df['f_score'] = safe_qcut(df['frequency'], q=5, labels=list(range(1, 6)), ascending=True)
     df['m_score'] = safe_qcut(df['monetary'], q=5, labels=list(range(1, 6)), ascending=True)
     
-    # Ensure scores are numeric for calculation
+    
     df['r_score'] = pd.to_numeric(df['r_score'], errors='coerce')
     df['f_score'] = pd.to_numeric(df['f_score'], errors='coerce')
     df['m_score'] = pd.to_numeric(df['m_score'], errors='coerce')

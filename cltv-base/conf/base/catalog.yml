@@ -1,4 +1,3 @@
-# conf/base/catalog.yml
 
 # Raw data - these are the fixed paths where Streamlit will place the input data
 orders_raw:
@@ -49,7 +48,7 @@ rfm_segmented_with_historical_cltv:
 
 customers_at_risk_df:
   type: pandas.ParquetDataset
-  filepath: data/03_primary/customers_at_risk_df.parquet # Moved to primary as it's a direct insight
+  filepath: data/03_primary/customers_at_risk_df.parquet 
 
 rfm_segmented_labeled_churn:
   type: pandas.ParquetDataset
@@ -117,12 +116,12 @@ segment_summary_data_for_ui:
   type: pandas.ParquetDataset
   filepath: data/04_feature/segment_summary_data_for_ui.parquet
 
-segment_counts_data_for_ui: # NEW DATASET FOR PIE CHART
+segment_counts_data_for_ui:
   type: pandas.ParquetDataset
   filepath: data/04_feature/segment_counts_data_for_ui.parquet
 
 top_products_by_segment_data_for_ui:
-  type: pickle.PickleDataset # Use Pickle for Dict[str, DataFrame]
+  type: pickle.PickleDataset 
   filepath: data/04_feature/top_products_by_segment_data_for_ui.pkl
 
 predicted_cltv_display_data_for_ui:
@@ -134,7 +133,7 @@ cltv_comparison_data_for_ui:
   filepath: data/04_feature/cltv_comparison_data_for_ui.parquet
 
 realization_curve_data_for_ui:
-  type: pickle.PickleDataset # Use Pickle for Dict[str, DataFrame]
+  type: pickle.PickleDataset
   filepath: data/04_feature/realization_curve_data_for_ui.pkl
 
 churn_summary_data_for_ui:
@@ -149,8 +148,8 @@ churn_detailed_view_data_for_ui:
   type: pandas.ParquetDataset
   filepath: data/04_feature/churn_detailed_view_data_for_ui.parquet
 
-# Final combined data for the UI (if a single large DF is preferred)
-# This will be constructed by combining relevant outputs for the UI
+# Final combined data for the UI 
+
 final_rfm_cltv_churn_data:
   type: pandas.ParquetDataset
   filepath: data/04_feature/final_rfm_cltv_churn_data.parquet
@@ -167,7 +166,7 @@ calculated_ml_threshold:
   type: json.JSONDataset
   filepath: data/02_intermediate/calculated_ml_threshold.json
 
-metric_thresholds: # Optional: for a mapping of all thresholds
+metric_thresholds: 
   type: json.JSONDataset
   filepath: data/02_intermediate/metric_thresholds.json
 monthly_rfm:
