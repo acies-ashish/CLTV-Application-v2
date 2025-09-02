@@ -1,11 +1,9 @@
-# conf/base/parameters.yml
-
 # Data Standardisation
 expected_orders_cols: # Renamed from mapping_orders_expected_cols
   Transaction ID: ["Transaction ID", "transaction_id"]
-  Order ID: ["Order ID", "order_id"]
-  Product ID: ["Product ID", "product_id", "SKU", "Item Code"]
-  Quantity: ["Quantity", "Qty", "order_quantity"]
+  Order ID: ["order_item_id", "Order ID", "order_id"]
+  Product ID: ["Product ID", "product_id", "SKU", "Item Code", "product_id"]
+  Quantity: ["Quantity", "Qty", "order_quantity", "quantity"]
   Total Amount: ["Total Amount", "total_amount", "amount"]
   Unit Price: ["unit_price", "price"]
   Order Date: ["Order Date", "order_date", "Order_date"]
@@ -19,11 +17,11 @@ expected_orders_cols: # Renamed from mapping_orders_expected_cols
 expected_transaction_cols: # Renamed from mapping_transactions_expected_cols
   Transaction ID: ["Transaction ID", "transaction_id"]
   Visit ID: ["Visit ID", "visit_id"]
-  User ID: ["User ID", "user_id", "Customer ID"]
   Order ID: ["Order ID", "order_id"]
-  Purchase Date: ["Purchase Date", "purchase_date", "Transaction Date"]
+  User ID: ["customer_id", "User ID", "user_id", "Customer ID"]
+  Purchase Date: ["purchase_timestamp", "Purchase Date", "purchase_date", "Transaction Date"]
   Payment Method: ["Payment Method", "payment_method", "Mode of Payment"]
-  Total Amount: ["Total Payable", "total_payable", "Total_amount", "amount_payable", "Total_amount_per_transaction", "total_amount"]
+  Total Amount: ["total_payable","Total Payable", "total_payable", "Total_amount", "amount_payable", "Total_amount_per_transaction", "total_amount"]
 
 orders_df_name: "Orders" # Renamed from df_name_orders
 transactions_df_name: "Transactions" # Renamed from df_name_transactions
@@ -32,26 +30,19 @@ transactions_df_name: "Transactions" # Renamed from df_name_transactions
 at_risk_threshold_days: 70 # Customers with recency > this are considered at risk
 
 # Churn Model Parameters
-churn_inactive_days_threshold: 30 # Customers with recency > this are labeled as churned (for training)
+churn_inactive_days_threshold: 30
 churn_model_n_estimators: 100
 churn_model_random_state: 42
-predicted_churn_probability_threshold: 0.5 # Probability threshold to classify as churned (for prediction)
+predicted_churn_probability_threshold: 0.5 
 
 # Cox Model Parameters
-cox_model_churn_threshold: 30 # Same as churn_inactive_days_threshold for consistency
+cox_model_churn_threshold: 30 
 cox_feature_cols:
   - aov
   - recency  
   - monetary
   - avg_days_between_orders
   - frequency
-
-
-
-# New RFM Segmentation Parameters (ADJUSTED RECENCY THRESHOLDS)
-rfm_recency_thresholds: [20, 45, 60, 75] # Days: 0-7 (5), 8-14 (4), 15-30 (3), 31-60 (2), >60 (1)
-rfm_frequency_thresholds: [1, 2, 4, 7] # Transactions: 0-1 (1), 2 (2), 3-4 (3), 5-7 (4), >7 (5)
-rfm_monetary_thresholds: [500, 1500, 3000, 7000] # Amount: 0-500 (1), 501-1500 (2), 1501-3000 (3), 3001-7000 (4), >7000 (5)
 
 
 user_threshold_value: 0.5
@@ -65,5 +56,5 @@ inactive_days_threshold: 27
 
 customer_col: User ID
 date_col: Purchase Date
-order_col: Order ID
+order_col: Transaction ID
 amount_col: Total Amount

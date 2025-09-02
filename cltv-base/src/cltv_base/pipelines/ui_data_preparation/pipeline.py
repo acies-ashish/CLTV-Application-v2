@@ -1,5 +1,3 @@
-# src/cltv_base/pipelines/ui_data_preparation/pipeline.py
-
 from kedro.pipeline import Pipeline, node
 from .nodes import (
     prepare_kpi_data,

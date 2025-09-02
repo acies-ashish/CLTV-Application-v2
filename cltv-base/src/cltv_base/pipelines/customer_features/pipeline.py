@@ -20,8 +20,6 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=perform_rfm_segmentation,
-                # The 'params' inputs for thresholds are removed because the
-                # function now calculates quantiles directly from the data.
                 inputs="customer_level_features",
                 outputs="rfm_segmented_df",
                 name="perform_rfm_segmentation",

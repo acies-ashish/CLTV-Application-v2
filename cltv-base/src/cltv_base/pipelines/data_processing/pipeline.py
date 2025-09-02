@@ -1,5 +1,3 @@
-# src/cltv_base/pipelines/data_processing/pipeline.py
-
 from kedro.pipeline import Pipeline, node
 from .nodes import standardize_columns, convert_data_types, merge_orders_transactions
 
