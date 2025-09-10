@@ -527,8 +527,8 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     st.subheader("Realization Curve of CLTV Over Time")
     if realization_curve_data:
         # Define all available segments for the multiselect, including "Overall Average" and "All Segments"
-        all_options = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified', 'Overall Average']
+        all_options = ['Overall Average', 'Champions', 'Potential Champions', 'Recent Customers', 
+                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
         
         # Define default selected options
         default_selected = [
@@ -563,7 +563,9 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
                 combined_df = pd.concat(charts_to_display, ignore_index=True)
 
                 # Use the broader segment_colors for consistent coloring
+                
                 color_map = {
+                        "Overall Average": "rgba(0, 0, 0, 1.0)",
                         "Champions": "rgba(218, 165, 32, 1.0)",
                         "Potential Champions": "rgba(60, 179, 113, 1.0)",
                         "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
