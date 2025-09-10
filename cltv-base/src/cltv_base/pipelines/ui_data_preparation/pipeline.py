@@ -8,7 +8,11 @@ from .nodes import (
     prepare_cltv_comparison_data,
     calculate_realization_curve_data,
     prepare_churn_summary_data,
-    prepare_churn_detailed_view_data
+    prepare_churn_detailed_view_data,
+    # 
+    # **- NEW IMPORT -**
+    # 
+    prepare_churn_performance_data,
 )
 
 def create_pipeline(**kwargs) -> Pipeline:
@@ -71,6 +75,12 @@ def create_pipeline(**kwargs) -> Pipeline:
                 outputs="churn_detailed_view_data_for_ui",
                 name="prepare_churn_detailed_view_data",
             ),
+            node(
+                func=prepare_churn_performance_data,
+                inputs=["churn_classification_report", "churn_labels_test", "churn_features_test"],
+                outputs="churn_performance_metrics_for_ui",
+                name="prepare_churn_performance_data",
+            )
         ],
         tags="ui_data_preparation" # Optional: Add a tag for this pipeline
     )

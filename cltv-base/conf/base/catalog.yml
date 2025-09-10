@@ -1,4 +1,3 @@
-
 # Raw data - these are the fixed paths where Streamlit will place the input data
 orders_raw:
   type: pandas.CSVDataset
@@ -83,13 +82,13 @@ churn_feature_importances:
   type: json.JSONDataset
   filepath: data/03_primary/churn_feature_importances.json
 
-churn_X_test:
+churn_features_test:
   type: pandas.ParquetDataset
-  filepath: data/03_primary/churn_X_test.parquet
+  filepath: data/03_primary/churn_features_test.parquet
 
-churn_y_test:
+churn_labels_test:
   type: pandas.ParquetDataset
-  filepath: data/03_primary/churn_y_test.parquet
+  filepath: data/03_primary/churn_labels_test.parquet
 
 cox_model:
   type: pickle.PickleDataset
@@ -147,6 +146,12 @@ active_days_summary_data_for_ui:
 churn_detailed_view_data_for_ui:
   type: pandas.ParquetDataset
   filepath: data/04_feature/churn_detailed_view_data_for_ui.parquet
+
+# **- NEW DATASET -**
+churn_performance_metrics_for_ui:
+  type: pickle.PickleDataset
+  filepath: data/04_feature/churn_performance_metrics_for_ui.pkl
+
 
 # Final combined data for the UI 
 

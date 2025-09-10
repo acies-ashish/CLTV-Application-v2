@@ -1,7 +1,8 @@
 import pandas as pd
+import numpy as np
 from typing import Dict, Tuple, List
 from datetime import datetime
-
+from sklearn.metrics import classification_report, confusion_matrix
 
 def format_date_with_ordinal(date):
     if pd.isna(date):
@@ -84,7 +85,7 @@ def prepare_top_products_by_segment_data(orders_df: pd.DataFrame, transactions_d
     
     print("Preparing top products by segment data...")
     all_possible_segments = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost']
+                 'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost']
     
     # Initialize with both columns
     top_products_by_segment = {segment: pd.DataFrame(columns=['product_id', 'Total_Quantity', 'Total_Revenue']) for segment in all_possible_segments}
@@ -162,7 +163,7 @@ def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> p
         value_name='Average CLTV')
 
     segment_order = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
+                 'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
     segment_melted['segment'] = pd.Categorical(segment_melted['segment'], categories=segment_order, ordered=True)
     return segment_melted.sort_values(by='segment')
 
@@ -172,7 +173,7 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     print("Calculating realization curve data...")
     
     all_possible_segments = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
+                 'Customers Needing Attention', 'At Risk', 'About to Sleep', 'Lost', 'Unclassified']
     realization_data = {
         "Overall Average": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"]),
         "All Segments": pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User", "Segment"])
@@ -303,3 +304,54 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
         return pd.DataFrame(columns=required_cols)
 
     return rfm_segmented_df[required_cols].sort_values(by='predicted_churn_prob', ascending=False).copy()
+
+
+# 
+# **- NEW FUNCTION -**
+# 
+
+def prepare_churn_performance_data(
+    churn_classification_report: dict,
+    churn_labels_test: pd.DataFrame,
+    churn_features_test: pd.DataFrame,
+) -> Dict[str, pd.DataFrame]:
+    """
+    Prepares performance metrics and a confusion matrix for the churn model.
+    """
+    print("Preparing churn performance data...")
+    
+    # Check if the report is valid and has metrics for the '1' class (churned)
+    if not churn_classification_report or '1' not in churn_classification_report:
+        return {
+            "metrics": pd.DataFrame(),
+            "confusion_matrix": pd.DataFrame()
+        }
+    
+    # 1. Prepare Metrics Table
+    metrics_df = pd.DataFrame(
+        {
+            "Metric": ["Accuracy", "Precision (Churn)", "Recall (Churn)", "F1-Score (Churn)"],
+            "Value": [
+                churn_classification_report['accuracy'],
+                churn_classification_report['1']['precision'],
+                churn_classification_report['1']['recall'],
+                churn_classification_report['1']['f1-score'],
+            ],
+        }
+    )
+
+    # 2. Prepare Confusion Matrix
+    y_true = churn_labels_test.values.ravel()
+    y_pred = churn_features_test['predicted_churn_label'].values # Assumes the predicted label is on the test df
+
+    cm = confusion_matrix(y_true, y_pred, labels=[0, 1])
+    cm_df = pd.DataFrame(
+        cm,
+        index=["Actual No Churn", "Actual Churn"],
+        columns=["Predicted No Churn", "Predicted Churn"],
+    )
+    
+    return {
+        "metrics": metrics_df,
+        "confusion_matrix": cm_df,
+    }

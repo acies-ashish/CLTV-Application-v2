@@ -70,6 +70,10 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['calculated_distribution_threshold'] = context.catalog.load("calculated_distribution_threshold")
             ui_data['calculated_user_value_threshold'] = context.catalog.load("calculated_user_value_threshold")
             ui_data['calculated_ml_threshold'] = context.catalog.load("calculated_ml_threshold")
+            # 
+            # **- NEW LOAD -**
+            # 
+            ui_data['churn_performance'] = context.catalog.load("churn_performance_metrics_for_ui")
 
             def _safe_load(name):
                 try:
@@ -79,7 +83,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
 
             ui_data['monthly_rfm'] = _safe_load("monthly_rfm")
             ui_data['quarterly_rfm'] = _safe_load("quarterly_rfm")
-            ui_data['monthly_pair_migrations'] = _safe_load("monthly_pair_migrations")  # dict[(period, next_period)] -> {'counts','percent'}
+            ui_data['monthly_pair_migrations'] = _safe_load("monthly_pair_migrations") 
             ui_data['quarterly_pair_migrations'] = _safe_load("quarterly_pair_migrations")
 
         return ui_data
@@ -158,7 +162,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
 
     # Define segment order and descriptions at the start of the function
     segment_order_display = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
     
     segment_descriptions = {
         'Champions': "The cream of the crop - your top customers who are the most loyal and generate the most of the revenue. They buy recently, frequently, and spend a lot.",
@@ -303,9 +307,9 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
         
         # First, get the correct base DataFrame
         all_products_data = pd.concat(top_products_by_segment_data.values()) \
-                    .groupby('product_id') \
-                    .sum() \
-                    .reset_index()
+                     .groupby('product_id') \
+                     .sum() \
+                     .reset_index()
         if selected_segment == 'Overall':
             df_to_process = all_products_data
         else:
@@ -335,51 +339,51 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
             current_segment_products = df_to_process.sort_values(
             by=y_col, ascending=False
         ).head(5)
-        if not current_segment_products.empty:
+            if not current_segment_products.empty:
     # Determine y-axis column and title based on choice
-            if metric_choice == "Total Quantity":
-                y_col = 'Total_Quantity'
-                y_axis_title = 'Total Quantity'
-                text_template = '%{text:.0f}'
-                
-                # Update the chart title for the 'Overall' case
-                if selected_segment == 'Overall':
-                    chart_title = "Top 5 Products by Quantity (Overall)"
-                else:
-                    chart_title = f"Top 5 Products by Quantity for '{selected_segment}' (All Time)"
+                if metric_choice == "Total Quantity":
+                    y_col = 'Total_Quantity'
+                    y_axis_title = 'Total Quantity'
+                    text_template = '%{text:.0f}'
                     
-            else: # Total Revenue
-                y_col = 'Total_Revenue'
-                y_axis_title = 'Total Revenue ($)'
-                text_template = '$%{text:,.2f}'
-                
-                # Update the chart title for the 'Overall' case
-                if selected_segment == 'Overall':
-                    chart_title = "Top 5 Products by Revenue (Overall)"
-                else:
-                    chart_title = f"Top 5 Products by Revenue for '{selected_segment}' (All Time)"
+                    # Update the chart title for the 'Overall' case
+                    if selected_segment == 'Overall':
+                        chart_title = "Top 5 Products by Quantity (Overall)"
+                    else:
+                        chart_title = f"Top 5 Products by Quantity for '{selected_segment}' (All Time)"
+                    
+                else: # Total Revenue
+                    y_col = 'Total_Revenue'
+                    y_axis_title = 'Total Revenue ($)'
+                    text_template = '$%{text:,.2f}'
+                    
+                    # Update the chart title for the 'Overall' case
+                    if selected_segment == 'Overall':
+                        chart_title = "Top 5 Products by Revenue (Overall)"
+                    else:
+                        chart_title = f"Top 5 Products by Revenue for '{selected_segment}' (All Time)"
 
-            st.markdown(f"#### {chart_title}")
-            fig_products = px.bar(
-                current_segment_products,
-                x='product_id',
-                y=y_col, # Dynamic y-axis
-                text=y_col, # Dynamic text
-                labels={'product_id': 'Product ID', y_col: y_axis_title}, # Dynamic label
-                color='product_id',
-                color_discrete_sequence = [
+                st.markdown(f"#### {chart_title}")
+                fig_products = px.bar(
+                    current_segment_products,
+                    x='product_id',
+                    y=y_col, # Dynamic y-axis
+                    text=y_col, # Dynamic text
+                    labels={'product_id': 'Product ID', y_col: y_axis_title}, # Dynamic label
+                    color='product_id',
+                    color_discrete_sequence = [
                         '#08306b',   # Very Dark Blue
                         '#2171b5',   # Mid Blue
                         '#4292c6',   # Light Blue
                         '#6baed6',   # Softer Blue
                         "#9dcce6"    # Pale Blue
                     ]
-            )
-            fig_products.update_traces(texttemplate=text_template, textposition='outside') # Dynamic text format
-            fig_products.update_layout(yaxis_title=y_axis_title, xaxis_title="Product ID") # Dynamic axis title
-            st.plotly_chart(fig_products, use_container_width=True)
-        else:
-            st.info(f"No products found for the '{selected_segment}' segment.")
+                )
+                fig_products.update_traces(texttemplate=text_template, textposition='outside') # Dynamic text format
+                fig_products.update_layout(yaxis_title=y_axis_title, xaxis_title="Product ID") # Dynamic axis title
+                st.plotly_chart(fig_products, use_container_width=True)
+            else:
+                st.info(f"No products found for the '{selected_segment}' segment.")
     else:
         st.warning("Top products by segment data not available.")
 
@@ -391,9 +395,9 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
     # Nested expander for the Predicted CLTV table
     with st.expander("Predicted CLTV Table", expanded=False):
         if not predicted_cltv_display_data.empty:
-            new_segment_options =  ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
-        
+            new_segment_options =   ['Champions', 'Potential Champions', 'Recent Customers', 
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
+            
             table_segment = st.selectbox(
                 "Table Filter by Segment", new_segment_options,
                 index=0, key="predicted_cltv_table_segment_filter"
@@ -415,7 +419,7 @@ def show_prediction_tab_ui(predicted_cltv_display_data: pd.DataFrame, cltv_compa
     with st.expander("CLTV Comparison Chart", expanded=False):
         if not cltv_comparison_data.empty:
             chart_segment_options = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
             
             selected_chart_segment = st.selectbox(
                 "Filter Chart by Segment",
@@ -456,13 +460,13 @@ def show_detailed_view_ui(
     
     # Label logic for current metric
     # if selected_metric in ['recency']:
-    #     operator_text = f"{selected_metric.title()} > {threshold_value:.0f}"
-    #     risk_lambda = lambda x: "at risk" if x >= threshold_value else "regular customers"
-    #     caption_text = f"Customers whose {selected_metric.title()} exceeds {threshold_value:.0f}: may be at risk of churning."
+    #   operator_text = f"{selected_metric.title()} > {threshold_value:.0f}"
+    #   risk_lambda = lambda x: "at risk" if x >= threshold_value else "regular customers"
+    #   caption_text = f"Customers whose {selected_metric.title()} exceeds {threshold_value:.0f}: may be at risk of churning."
     # else:
-    #     operator_text = f"{selected_metric.title()} < {threshold_value:.0f}"
-    #     risk_lambda = lambda x: "at risk" if x < threshold_value else "regular customers"
-    #     caption_text = f"Customers whose {selected_metric.title()} is below {threshold_value:.0f}: may be at risk of churning."
+    #   operator_text = f"{selected_metric.title()} < {threshold_value:.0f}"
+    #   risk_lambda = lambda x: "at risk" if x < threshold_value else "regular customers"
+    #   caption_text = f"Customers whose {selected_metric.title()} is below {threshold_value:.0f}: may be at risk of churning."
     #threshold= threshold_value['calculated_distribution_threshold']
     operator_text = f"RFM Score < {threshold_value:.0f}"
     caption_text = f"Customers whose RFM Score is lesser than {threshold_value:.0f}: may be at risk of churning."
@@ -528,7 +532,7 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
     if realization_curve_data:
         # Define all available segments for the multiselect, including "Overall Average" and "All Segments"
         all_options = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified', 'Overall Average']
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified', 'Overall Average']
         
         # Define default selected options
         default_selected = [
@@ -564,13 +568,13 @@ def show_realization_curve_ui(realization_curve_data: Dict[str, pd.DataFrame]):
 
                 # Use the broader segment_colors for consistent coloring
                 color_map = {
-                        "Champions": "rgba(218, 165, 32, 1.0)",
-                        "Potential Champions": "rgba(60, 179, 113, 1.0)",
-                        "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
-                        "Recent Customers": "rgba(70, 130, 180, 1.0)",
-                        "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
-                        "About to Sleep": "rgba(255, 99, 71, 1.0)",
-                        "Lost": "rgba(128, 128, 128, 1.0)"
+                         "Champions": "rgba(218, 165, 32, 1.0)",
+                         "Potential Champions": "rgba(60, 179, 113, 1.0)",
+                         "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+                         "Recent Customers": "rgba(70, 130, 180, 1.0)",
+                         "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+                         "About to Sleep": "rgba(255, 99, 71, 1.0)",
+                         "Lost": "rgba(128, 128, 128, 1.0)"
                 }
 
                 fig = px.line(
@@ -634,7 +638,7 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
         <style>
         .kpi-card {
             background-color: #B6D7F9; /* A soft, light blue for the background */
-            color: black;              /* Black text for high contrast */
+            color: black;            /* Black text for high contrast */
             padding: 20px;
             border-radius: 10px;
             text-align: center;
@@ -687,13 +691,13 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 
     # Use the same color map as defined for the pie chart and segment cards
     segment_colors_churn = {
-                        "Champions": "rgba(218, 165, 32, 1.0)",
-                        "Potential Champions": "rgba(60, 179, 113, 1.0)",
-                        "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
-                        "Recent Customers": "rgba(70, 130, 180, 1.0)",
-                        "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
-                        "About to Sleep": "rgba(255, 99, 71, 1.0)",
-                        "Lost": "rgba(128, 128, 128, 1.0)"
+                         "Champions": "rgba(218, 165, 32, 1.0)",
+                         "Potential Champions": "rgba(60, 179, 113, 1.0)",
+                         "Customers Needing Attention": "rgba(255, 165, 0, 1.0)",
+                         "Recent Customers": "rgba(70, 130, 180, 1.0)",
+                         "Loyal Lapsers": "rgba(106, 90, 205, 1.0)",
+                         "About to Sleep": "rgba(255, 99, 71, 1.0)",
+                         "Lost": "rgba(128, 128, 128, 1.0)"
     }
 
     
@@ -749,8 +753,8 @@ def show_churn_tab_ui(rfm_segmented: pd.DataFrame, churn_summary_data: pd.DataFr
 #tab7 funcions
 def _segments_in_order(df: pd.DataFrame):
     # Build order dynamically from dataset
-    preferred =  ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
+    preferred =   ['Champions', 'Potential Champions', 'Recent Customers', 
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost', 'Unclassified']
         
     present = [s for s in preferred if s in df['Segment'].unique().tolist()]
     extras = sorted(list(set(df['Segment'].unique().tolist()) - set(present)))
@@ -810,9 +814,9 @@ def pair_key(migration_by_pair: dict, cp: str, np_: str, period_freq: str):
     return key
 
 def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
-                                quarterly_rfm: pd.DataFrame,
-                                monthly_pairs: dict,
-                                quarterly_pairs: dict):
+                                 quarterly_rfm: pd.DataFrame,
+                                 monthly_pairs: dict,
+                                 quarterly_pairs: dict):
     st.subheader("Customer Migration")
 
     # Guard: artifacts available?
@@ -983,7 +987,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     
         # --- START OF SANKEY CODE BLOCK ---
     seg_list = ['Champions', 'Potential Champions', 'Recent Customers', 
-                'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
+                 'Customers Needing Attention', 'Loyal Lapsers', 'About to Sleep', 'Lost']
     segment_palette = {
     "Champions": "rgba(218, 165, 32, 1.0)",
     "Potential Champions": "rgba(60, 179, 113, 1.0)",
@@ -994,7 +998,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     "Lost": "rgba(128, 128, 128, 1.0)" 
     }
 
-   
+    
     sel = st.multiselect(
         "Show ONLY flows involving these segments (either side):",
         seg_list,
@@ -1022,7 +1026,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
             value.append(v)
 
     # --- Color Assignment Logic ---
-   
+    
     node_colors = [segment_palette.get(s, 'black') for s in seg_list] * 2
 
     # Get a list of colors for each link based on the source node's segment
@@ -1072,6 +1076,50 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
         st.info("No links to display with the current selection.")
 
 
+# **- NEW FUNCTION -**
+# 
+
+def show_performance_tab_ui(churn_performance: Dict):
+    st.subheader("Churn Model Performance Metrics")
+    st.markdown("Metrics for the Random Forest Classifier trained to predict churn.")
+
+    # KPI Cards for overall metrics
+    if not churn_performance['metrics'].empty:
+        st.markdown("#### Overall Performance")
+        metrics_df = churn_performance['metrics'].set_index("Metric")
+        col1, col2, col3, col4 = st.columns(4)
+
+        with col1:
+            st.metric("Accuracy", f"{metrics_df.loc['Accuracy', 'Value']:.2f}")
+        with col2:
+            st.metric("Precision (Churn)", f"{metrics_df.loc['Precision (Churn)', 'Value']:.2f}")
+        with col3:
+            st.metric("Recall (Churn)", f"{metrics_df.loc['Recall (Churn)', 'Value']:.2f}")
+        with col4:
+            st.metric("F1-Score (Churn)", f"{metrics_df.loc['F1-Score (Churn)', 'Value']:.2f}")
+
+    st.markdown("#### Confusion Matrix")
+    st.caption("How many predictions were correct vs. incorrect?")
+
+    if not churn_performance['confusion_matrix'].empty:
+        fig_cm = px.imshow(
+            churn_performance['confusion_matrix'],
+            text_auto=True,
+            labels=dict(x="Predicted Class", y="Actual Class", color="Count"),
+            color_continuous_scale=px.colors.sequential.Teal,
+            aspect="auto"
+        )
+        fig_cm.update_layout(
+            xaxis=dict(title="Predicted"),
+            yaxis=dict(title="Actual"),
+            width=500,
+            height=500
+        )
+        st.plotly_chart(fig_cm)
+    else:
+        st.warning("Churn model performance data not available.")
+
+
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard")
@@ -1083,9 +1131,9 @@ def run_streamlit_app():
     if 'preprocessing_done' not in st.session_state:
         st.session_state['preprocessing_done'] = False
     
-    # Renamed 'Insights' to 'Findings'
-    tab1, tab2, tab3, tab4, tab5, tab6= st.tabs([
-        "Upload / Load Data", "Findings",  "Predictions", "Realization Curve", "Churn", "Customer Migration"
+    # **- NEW TAB -**
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7 = st.tabs([
+        "Upload / Load Data", "Findings",  "Predictions", "Realization Curve", "Churn", "Customer Migration", "Model Performance"
     ])
 
     with tab1:
@@ -1164,8 +1212,13 @@ def run_streamlit_app():
             show_customer_migration_tab_ui(
                 ui_data['monthly_rfm'], ui_data['quarterly_rfm'],
                 ui_data['monthly_pair_migrations'], ui_data['quarterly_pair_migrations'])
+        
+        # **- NEW TAB -**
+        with tab7:
+            show_performance_tab_ui(ui_data['churn_performance'])
+
     else:
-        for tab in [tab2, tab3, tab4, tab5, tab6]:
+        for tab in [tab2, tab3, tab4, tab5, tab6, tab7]:
             with tab:
                 st.warning("Please upload or load data first in the 'Upload / Load Data' tab and click 'Process Data'.")
 

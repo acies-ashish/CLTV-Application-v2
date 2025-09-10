@@ -3,7 +3,7 @@ import numpy as np
 from typing import Tuple, Dict, List, Any
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report
+from sklearn.metrics import classification_report, confusion_matrix
 from lifelines import CoxPHFitter
 
 # Supported Metrics
@@ -75,7 +75,7 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
     df = customer_df.set_index('User ID', drop=False)
     feature_cols = [
         'frequency', 'monetary', 'aov',
-        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d', 'recency', 'is_churned'
+        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d', 'recency'
     ]
     available_cols = [c for c in feature_cols if c in df.columns]
     if len(available_cols) < len(feature_cols):
@@ -105,7 +105,20 @@ def train_churn_prediction_model(
     )
     model = RandomForestClassifier(n_estimators=n_estimators, random_state=random_state)
     model.fit(X_train, y_train.values.ravel())
-    report = classification_report(y_test, model.predict(X_test), output_dict=True)
+    
+    # 
+    # **- CHANGE START -**
+    # 
+    # Get predictions on the test set
+    y_pred = model.predict(X_test)
+    
+    # Add predicted labels to the test features DataFrame for later use
+    X_test['predicted_churn_label'] = y_pred
+    
+    report = classification_report(y_test, y_pred, output_dict=True)
+    # 
+    # **- CHANGE END -**
+    # 
     importances = model.feature_importances_.tolist()
     return model, report, importances, X_test, y_test
 
@@ -114,7 +127,11 @@ def predict_churn_probabilities(model: RandomForestClassifier, X: pd.DataFrame) 
         return pd.DataFrame(columns=['User ID', 'predicted_churn_prob'])
 
     try:
-        probs = model.predict_proba(X)[:, 1]
+        # **- CHANGE START -**
+        # Ensure correct class probability is selected if class order changes
+        churn_class_index = list(model.classes_).index(1)
+        probs = model.predict_proba(X)[:, churn_class_index]
+        # **- CHANGE END -**
 
     except IndexError:
         print("Warning: Model was trained on a single class. Predicting probabilities accordingly.")
