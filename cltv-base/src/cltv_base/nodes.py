@@ -24,6 +24,7 @@ def combine_final_customer_data(
             on='User ID',
             how='left'
         )
+        print(final_df.columns)
     else:
         print("Warning: predicted_churn_probabilities is empty or missing 'User ID'. Skipping merge.")
         final_df['predicted_churn_prob'] = None # Ensure column exists
@@ -70,4 +71,5 @@ def combine_final_customer_data(
                 final_df[col] = final_df[col].fillna(0)
     
     print(f"Final combined customer data shape: {final_df.shape}")
+    print(final_df['predicted_churn'].value_counts())
     return final_df

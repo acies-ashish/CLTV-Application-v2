@@ -1,6 +1,7 @@
 import pandas as pd
 from typing import Dict, Tuple, List
 from datetime import datetime
+from datetime import timedelta
 
 
 def format_date_with_ordinal(date):
@@ -187,12 +188,12 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     if 'user_id' not in df.columns and 'user id' in df.columns: # Handle potential variations
         df.rename(columns={'user id': 'user_id'}, inplace=True)
 
-    required_cols = {'purchase_date', 'quantity', 'unitprice', 'user_id'}
+    required_cols = {'order_date', 'quantity', 'unitprice', 'user_id'}
     if df.empty or not required_cols.issubset(set(df.columns)):
         print(f"Warning: Required columns for realization curve not found: {required_cols - set(df.columns)} or empty orders data. Returning empty dict.")
         return realization_data # Return pre-initialized empty dict for all segments
 
-    df['purchase_date'] = pd.to_datetime(df['purchase_date'], dayfirst=True)
+    df['order_date'] = pd.to_datetime(df['order_date'], dayfirst=True)
     df['revenue'] = df['quantity'] * df['unitprice']
 
     
@@ -292,6 +293,7 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
     Prepares detailed churn analysis data for display.
     """
     print("Preparing detailed churn view data...")
+    print(rfm_segmented_df.info())
     required_cols = ['User ID', 'segment', 'predicted_cltv_3m', 'predicted_churn_prob', 'predicted_churn', 'expected_active_days']
     if rfm_segmented_df.empty or not all(col in rfm_segmented_df.columns for col in required_cols):
         print("Warning: Missing required columns or empty DataFrame for detailed churn view. Returning empty DataFrame.")
@@ -301,5 +303,16 @@ def prepare_churn_detailed_view_data(rfm_segmented_df: pd.DataFrame) -> pd.DataF
         print(f"Diagnostic: prepare_churn_detailed_view_data - Columns available: {rfm_segmented_df.columns.tolist()}")
         # --- End Diagnostic Print ---
         return pd.DataFrame(columns=required_cols)
-
+        print(rfm_segmented_df.columns)
+    
+    else:
+        not_churn_mask = rfm_segmented_df['predicted_churn'] == 0
+        rfm_segmented_df.loc[not_churn_mask, 'expected_next_purchase'] = (rfm_segmented_df.loc[not_churn_mask].apply(
+    lambda row: row['last_purchase'] + timedelta(days=row['avg_days_between_orders']),
+    axis=1
+)).dt.date
+        required_cols = ['User ID', 'segment', 'predicted_cltv_3m', 'predicted_churn_prob', 'predicted_churn', 'expected_active_days', 'expected_next_purchase']
+    #avg_days_between_orders
+    #last_purchase
+    #is_churned
     return rfm_segmented_df[required_cols].sort_values(by='predicted_churn_prob', ascending=False).copy()

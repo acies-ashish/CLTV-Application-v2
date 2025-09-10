@@ -82,6 +82,7 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
         print(f"[WARN] Missing features: {set(feature_cols) - set(available_cols)}")
     X = df[available_cols]
     y = df[['is_churned']]
+    print(X.columns, y.columns)
     return X, y
 
 def train_churn_prediction_model(
@@ -151,4 +152,5 @@ def train_cox_survival_model(customer_df: pd.DataFrame, feature_col: List[str]) 
     cph.fit(df[required_cols], duration_col='lifespan_1d', event_col='is_churned')
     df['expected_active_days'] = cph.predict_expectation(df[feature_col]).round(0).astype(int)
     #df.to_csv("expected_active_days.csv", index=False)
+    print(df.columns)
     return cph, df
