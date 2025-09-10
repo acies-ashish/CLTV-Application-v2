@@ -1123,9 +1123,6 @@ def show_performance_tab_ui(churn_performance: Dict):
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard")
-
-
-
     if 'ui_data' not in st.session_state:
         st.session_state['ui_data'] = None
     if 'preprocessing_done' not in st.session_state:
