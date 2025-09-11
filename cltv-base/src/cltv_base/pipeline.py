@@ -5,6 +5,8 @@ from cltv_base.pipelines.cltv_modeling import pipeline as cltv_modeling_pipeline
 from cltv_base.pipelines.churn_modeling import pipeline as churn_modeling_pipeline_module
 from cltv_base.pipelines.ui_data_preparation import pipeline as ui_data_preparation_pipeline_module
 from cltv_base.pipelines.customer_migration import pipeline as customer_migration_module
+from cltv_base.pipelines.xgboost_churn import pipeline as xgboost_churn_pipeline_module
+from cltv_base.pipelines.model_comparison_ui import pipeline as model_comparison_ui_module # NEW IMPORT
 
 from .nodes import combine_final_customer_data
 
@@ -19,6 +21,9 @@ def create_pipeline(**kwargs) -> Pipeline:
     churn_modeling_pipeline = churn_modeling_pipeline_module.create_pipeline()
     ui_data_preparation_pipeline = ui_data_preparation_pipeline_module.create_pipeline()
     customer_migration_pipeline = customer_migration_module.create_pipeline()
+    xgboost_churn_pipeline = xgboost_churn_pipeline_module.create_pipeline()
+    model_comparison_ui_pipeline = model_comparison_ui_module.create_pipeline()
+
     
     combine_customer_data_node = node(
         func=combine_final_customer_data,
@@ -41,4 +46,6 @@ def create_pipeline(**kwargs) -> Pipeline:
         + Pipeline([combine_customer_data_node]) \
         + ui_data_preparation_pipeline
         + customer_migration_pipeline
+        + xgboost_churn_pipeline 
+        + model_comparison_ui_pipeline
     )

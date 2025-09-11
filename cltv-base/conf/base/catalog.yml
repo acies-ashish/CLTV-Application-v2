@@ -1,4 +1,3 @@
-
 # Raw data - these are the fixed paths where Streamlit will place the input data
 orders_raw:
   type: pandas.CSVDataset
@@ -149,7 +148,6 @@ churn_detailed_view_data_for_ui:
   filepath: data/04_feature/churn_detailed_view_data_for_ui.parquet
 
 # Final combined data for the UI 
-
 final_rfm_cltv_churn_data:
   type: pandas.ParquetDataset
   filepath: data/04_feature/final_rfm_cltv_churn_data.parquet
@@ -169,6 +167,7 @@ calculated_ml_threshold:
 metric_thresholds: 
   type: json.JSONDataset
   filepath: data/02_intermediate/metric_thresholds.json
+
 monthly_rfm:
   type: pandas.ParquetDataset
   filepath: data/07_model_output/monthly_rfm.parquet
@@ -186,3 +185,33 @@ quarterly_pair_migrations:
   type: pickle.PickleDataset
   filepath: data/07_model_output/quarterly_pair_migrations.pkl
   backend: pickle
+
+# XGBoost model outputs
+xgboost_churn_model:
+  type: pickle.PickleDataset
+  filepath: data/03_primary/xgboost_churn_model.pkl
+
+xgboost_classification_report:
+  type: json.JSONDataset
+  filepath: data/03_primary/xgboost_classification_report.json
+
+xgboost_feature_importances:
+  type: json.JSONDataset
+  filepath: data/03_primary/xgboost_feature_importances.json
+
+xgboost_features_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/xgboost_features_test.parquet
+
+xgboost_labels_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/xgboost_labels_test.parquet
+
+xgboost_predicted_churn_probabilities:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/xgboost_predicted_churn_probabilities.parquet
+
+# New UI data for model comparison
+model_comparison_metrics_for_ui:
+  type: pandas.ParquetDataset
+  filepath: data/04_feature/model_comparison_metrics_for_ui.parquet

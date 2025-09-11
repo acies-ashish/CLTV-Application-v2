@@ -9,6 +9,8 @@ import json
 from typing import Dict
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
+import sys
+from typing import Dict, List, Any
 
 # Import Kedro specific components
 from kedro.framework.session import KedroSession
@@ -36,7 +38,6 @@ FIXED_TRANSACTIONS_RAW_PATH = DATA_00_EXTERNAL / "current_transactions_data.csv"
 # Sample data paths (assuming they are in data/01_raw as per Kedro convention)
 SAMPLE_ORDER_PATH = DATA_01_RAW / "Orders_v2.csv"
 SAMPLE_TRANS_PATH = DATA_01_RAW / "Transactional.csv"
-
 
 bootstrap_project(KEDRO_PROJECT_ROOT)
 
@@ -81,6 +82,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['quarterly_rfm'] = _safe_load("quarterly_rfm")
             ui_data['monthly_pair_migrations'] = _safe_load("monthly_pair_migrations")  # dict[(period, next_period)] -> {'counts','percent'}
             ui_data['quarterly_pair_migrations'] = _safe_load("quarterly_pair_migrations")
+            ui_data['model_comparison_metrics'] = _safe_load("model_comparison_metrics_for_ui")
 
         return ui_data
     except Exception as e:
@@ -97,6 +99,42 @@ def format_date_with_ordinal(date):
     return f"{day}{suffix} {date.strftime('%B %Y')}"
 
 # --- Streamlit UI Rendering Functions  ---
+
+def show_model_validation_tab(model_comparison_metrics: pd.DataFrame):
+    st.subheader("Model Validation & Comparison")
+    if not model_comparison_metrics.empty:
+        st.markdown("#### Overall Model Performance")
+        # Create a radio button to select the metric
+        selected_metric = st.radio(
+            "Select a metric to compare:",
+            ["Accuracy", "Macro Precision", "Macro Recall", "Macro F1-Score"],
+            horizontal=True
+        )
+        
+        # Filter the dataframe based on the selected metric
+        filtered_df = model_comparison_metrics[model_comparison_metrics["Metric"] == selected_metric]
+        
+        # Create a bar chart for comparison
+        fig = px.bar(
+            filtered_df,
+            x="Model",
+            y="Value",
+            color="Model",
+            title=f"Comparison of Models by {selected_metric}",
+            labels={"Value": selected_metric},
+            text_auto=True,
+            color_discrete_map={"Random Forest": "teal", "XGBoost": "darkorange"}
+        )
+        
+        fig.update_layout(yaxis_range=[0, 1])
+        st.plotly_chart(fig, use_container_width=True)
+
+        st.markdown("#### Detailed Metrics Table")
+        pivot_df = model_comparison_metrics.pivot_table(index="Metric", columns="Model", values="Value")
+        st.dataframe(pivot_df.style.format('{:.2%}'))
+    else:
+        st.info("Model comparison metrics not available. Please ensure your models run successfully.")
+
 
 def kpi_card(title, value, color="black"):
     st.markdown(f"""
@@ -1086,8 +1124,8 @@ def run_streamlit_app():
         st.session_state['preprocessing_done'] = False
     
     # Renamed 'Insights' to 'Findings'
-    tab1, tab2, tab3, tab4, tab5, tab6= st.tabs([
-        "Upload / Load Data", "Findings",  "Predictions", "Realization Curve", "Churn", "Customer Migration"
+    tab1, tab2, tab3, tab4, tab5, tab6, tab7= st.tabs([
+        "Upload / Load Data", "Findings",  "Predictions", "Realization Curve", "Churn", "Customer Migration", "Model Comparison"
     ])
 
     with tab1:
@@ -1166,8 +1204,10 @@ def run_streamlit_app():
             show_customer_migration_tab_ui(
                 ui_data['monthly_rfm'], ui_data['quarterly_rfm'],
                 ui_data['monthly_pair_migrations'], ui_data['quarterly_pair_migrations'])
+        with tab7:
+            show_model_validation_tab(ui_data.get('model_comparison_metrics'))
     else:
-        for tab in [tab2, tab3, tab4, tab5, tab6]:
+        for tab in [tab2, tab3, tab4, tab5, tab6, tab7]:
             with tab:
                 st.warning("Please upload or load data first in the 'Upload / Load Data' tab and click 'Process Data'.")
 

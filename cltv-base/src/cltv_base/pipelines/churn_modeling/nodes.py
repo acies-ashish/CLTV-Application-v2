@@ -75,7 +75,7 @@ def get_churn_features_labels(customer_df: pd.DataFrame) -> Tuple[pd.DataFrame, 
     df = customer_df.set_index('User ID', drop=False)
     feature_cols = [
         'frequency', 'monetary', 'aov',
-        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d', 'recency', 'is_churned'
+        'avg_days_between_orders', 'CLTV_30d', 'CLTV_60d', 'CLTV_90d', 'recency'
     ]
     available_cols = [c for c in feature_cols if c in df.columns]
     if len(available_cols) < len(feature_cols):
