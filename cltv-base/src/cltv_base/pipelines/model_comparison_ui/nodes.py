@@ -4,21 +4,23 @@ import pandas as pd
 from typing import Dict
 
 def combine_model_reports(
-    rf_report: Dict, xgb_report: Dict
+    rf_report: Dict, xgb_report: Dict, lgbm_report: Dict # NEW INPUT
 ) -> pd.DataFrame:
     """
     Combines classification reports from multiple models into a single DataFrame
     for UI display.
     """
-    if not rf_report and not xgb_report:
-        print("[WARN] No model reports available for comparison.")
-        return pd.DataFrame()
-
     reports = {}
     if rf_report:
         reports["Random Forest"] = rf_report
     if xgb_report:
         reports["XGBoost"] = xgb_report
+    if lgbm_report: # Check for the new report
+        reports["LightGBM"] = lgbm_report # Add the new report
+
+    if not reports:
+        print("[WARN] No model reports available for comparison.")
+        return pd.DataFrame()
 
     data = []
     for model_name, report in reports.items():

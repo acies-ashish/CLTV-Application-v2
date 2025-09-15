@@ -215,3 +215,28 @@ xgboost_predicted_churn_probabilities:
 model_comparison_metrics_for_ui:
   type: pandas.ParquetDataset
   filepath: data/04_feature/model_comparison_metrics_for_ui.parquet
+
+# LightGBM model outputs
+lightgbm_churn_model:
+  type: pickle.PickleDataset
+  filepath: data/03_primary/lightgbm_churn_model.pkl
+
+lightgbm_classification_report:
+  type: json.JSONDataset
+  filepath: data/03_primary/lightgbm_classification_report.json
+
+lightgbm_feature_importances:
+  type: json.JSONDataset
+  filepath: data/03_primary/lightgbm_feature_importances.json
+
+lightgbm_features_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/lightgbm_features_test.parquet
+
+lightgbm_labels_test:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/lightgbm_labels_test.parquet
+
+lightgbm_predicted_churn_probabilities:
+  type: pandas.ParquetDataset
+  filepath: data/03_primary/lightgbm_predicted_churn_probabilities.parquet

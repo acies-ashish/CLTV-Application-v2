@@ -83,6 +83,7 @@ lark==1.2.2
 lazy_loader==0.4
 lifelines==0.30.0
 Lifetimes==0.11.3
+lightgbm
 markdown-it-py==3.0.0
 MarkupSafe==3.0.2
 matplotlib==3.10.5

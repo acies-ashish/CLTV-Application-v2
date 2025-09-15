@@ -83,6 +83,7 @@ def run_kedro_main_pipeline_and_load_ui_data():
             ui_data['monthly_pair_migrations'] = _safe_load("monthly_pair_migrations")  # dict[(period, next_period)] -> {'counts','percent'}
             ui_data['quarterly_pair_migrations'] = _safe_load("quarterly_pair_migrations")
             ui_data['model_comparison_metrics'] = _safe_load("model_comparison_metrics_for_ui")
+            
 
         return ui_data
     except Exception as e:
@@ -99,22 +100,27 @@ def format_date_with_ordinal(date):
     return f"{day}{suffix} {date.strftime('%B %Y')}"
 
 # --- Streamlit UI Rendering Functions  ---
+# Updated snippet for show_model_validation_tab()
 
 def show_model_validation_tab(model_comparison_metrics: pd.DataFrame):
     st.subheader("Model Validation & Comparison")
     if not model_comparison_metrics.empty:
         st.markdown("#### Overall Model Performance")
-        # Create a radio button to select the metric
         selected_metric = st.radio(
             "Select a metric to compare:",
             ["Accuracy", "Macro Precision", "Macro Recall", "Macro F1-Score"],
             horizontal=True
         )
         
-        # Filter the dataframe based on the selected metric
         filtered_df = model_comparison_metrics[model_comparison_metrics["Metric"] == selected_metric]
         
-        # Create a bar chart for comparison
+        # New color map with the LightGBM model included
+        color_map = {
+            "Random Forest": "teal", 
+            "XGBoost": "darkorange", 
+            "LightGBM": "darkviolet"
+        }
+
         fig = px.bar(
             filtered_df,
             x="Model",
@@ -123,7 +129,7 @@ def show_model_validation_tab(model_comparison_metrics: pd.DataFrame):
             title=f"Comparison of Models by {selected_metric}",
             labels={"Value": selected_metric},
             text_auto=True,
-            color_discrete_map={"Random Forest": "teal", "XGBoost": "darkorange"}
+            color_discrete_map=color_map
         )
         
         fig.update_layout(yaxis_range=[0, 1])
@@ -134,7 +140,6 @@ def show_model_validation_tab(model_comparison_metrics: pd.DataFrame):
         st.dataframe(pivot_df.style.format('{:.2%}'))
     else:
         st.info("Model comparison metrics not available. Please ensure your models run successfully.")
-
 
 def kpi_card(title, value, color="black"):
     st.markdown(f"""
