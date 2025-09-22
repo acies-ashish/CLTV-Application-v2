@@ -116,6 +116,7 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
     customer_level['CLTV_90d'] = round(customer_level['monetary'] / customer_level['lifespan_90d'].replace(0, 0.1), 2)
     customer_level['CLTV_total'] = customer_level['monetary']
     
+    customer_level.to_csv("abc.csv", index=False)
     return customer_level
 
 

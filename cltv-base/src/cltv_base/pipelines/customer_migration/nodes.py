@@ -11,6 +11,10 @@ def compute_monthly_quarterly_rfm(
 ) -> Dict[str, pd.DataFrame]:
     monthly   = compute_rfm_for_period(transactions, customer_col, date_col, order_col, amount_col, period='M')
     quarterly = compute_rfm_for_period(transactions, customer_col, date_col, order_col, amount_col, period='Q')
+    #print(monthly.info())
+    #monthly.to_csv("monthly_.csv", index=False)
+    #print(quarterly.info())
+    #quarterly.to_csv("quarterly_.csv", index=False)
     return {"monthly_rfm": monthly, "quarterly_rfm": quarterly}
 
 def build_all_migrations(
@@ -18,4 +22,7 @@ def build_all_migrations(
 ) -> Dict[str, Dict[Tuple[object, object], Dict[str, pd.DataFrame]]]:
     m_pairs = build_migration_by_period_pair(monthly_rfm, customer_col=customer_col, period_col='month')
     q_pairs = build_migration_by_period_pair(quarterly_rfm, customer_col=customer_col, period_col='quarter')
+    #print(m_pairs)
+    #print(q_pairs)
+    
     return {"monthly_pair_migrations": m_pairs, "quarterly_pair_migrations": q_pairs}

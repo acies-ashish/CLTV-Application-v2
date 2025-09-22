@@ -55,7 +55,7 @@ def create_pipeline(**kwargs) -> Pipeline:
             ),
             node(
                 func=calculate_realization_curve_data,
-                inputs=["orders_merged_with_user_id", "historical_cltv_customers"],
+                inputs=["transactions_typed", "historical_cltv_customers"],
                 outputs="realization_curve_data_for_ui",
                 name="calculate_realization_curve_data",
             ),

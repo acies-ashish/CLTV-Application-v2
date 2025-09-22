@@ -15,29 +15,6 @@ def standardize_columns(df: pd.DataFrame, expected_mapping: dict, df_name: str) 
     
     print(f"Standardizing columns for {df_name} DataFrame...")
     column_map = {}
-    
-    date_candidates = expected_mapping.get("Order Date", [])
-    if date_candidates:
-        date_col = None
-        for candidate in date_candidates:
-            # Check if the candidate column exists in the DataFrame
-            if candidate in df.columns:
-                try:
-                    # Attempt to convert a sample of the column to datetime
-                    _ = pd.to_datetime(df[candidate].head(5), dayfirst=True)
-                    date_col = candidate
-                    break  # Found a suitable date column, no need to check others
-                except (ValueError, TypeError):
-                    # This candidate column does not contain valid dates
-                    continue
-        
-        if date_col:
-            column_map[date_col] = "Order Date"
-            expected_mapping.pop("Order Date")
-        else:
-            print(f"Warning: Could not find a suitable column for 'Order Date' in {df_name} DataFrame.")
-            
-    # 2. Process all other columns using the original _auto_map_column helper
     for standard_name, candidates in expected_mapping.items():
         mapped_col = _auto_map_column(df.columns.tolist(), candidates)
         if mapped_col:
@@ -45,12 +22,10 @@ def standardize_columns(df: pd.DataFrame, expected_mapping: dict, df_name: str) 
         else:
             print(f"Warning: Could not find a suitable column for '{standard_name}' in {df_name} DataFrame.")
     
+    # Rename columns that were successfully mapped
     df_standardized = df.rename(columns=column_map)
-    
-    print(f"Post-standardization columns: {df_standardized.columns.tolist()}")
-    print(f"Column map used: {column_map}")
+    print(df_standardized.info())
     return df_standardized
-
 def convert_data_types(orders_df: pd.DataFrame, transactions_df: pd.DataFrame) -> Tuple[pd.DataFrame, pd.DataFrame]:
     
     print("Converting data types...")
@@ -67,15 +42,16 @@ def convert_data_types(orders_df: pd.DataFrame, transactions_df: pd.DataFrame) -
         print("Warning: 'Return Date' not found in orders_df for type conversion.")
 
     # Convert numeric columns in orders_df
-    numeric_columns = ['Unit Price', 'Total Amount', 'Total Payable', 'Quantity']
+    numeric_columns = ['Unit Price', 'Quantity']
     for col in numeric_columns:
         if col in orders_df.columns:
             orders_df[col] = pd.to_numeric(orders_df[col], errors='coerce')
     
     # Convert numeric columns in transactions_df (assuming 'Total Amount' is the main one)
-    if 'Total Amount' in transactions_df.columns:
-        transactions_df['Total Amount'] = pd.to_numeric(transactions_df['Total Amount'], errors='coerce')
-
+    numeric_columns = ['Total Amount', 'Total Payable', 'Discount Value', 'Shipping Cost']
+    for col in numeric_columns:
+        if col in transactions_df.columns:
+            transactions_df[col] = pd.to_numeric(transactions_df[col], errors='coerce')
     # Ensure 'User ID' is string type in transactions_df for consistent merging later
     if 'User ID' in transactions_df.columns:
         transactions_df['User ID'] = transactions_df['User ID'].astype(str)
@@ -103,5 +79,5 @@ def merge_orders_transactions(orders_df: pd.DataFrame, transactions_df: pd.DataF
     else:
         print("Warning: 'Transaction ID' or 'User ID' not found in both orders and transactions for merging. Skipping merge.")
         df_orders_merged = orders_df.copy()
-        
+    print(df_orders_merged.info())
     return df_orders_merged

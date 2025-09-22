@@ -14,6 +14,7 @@ from plotly.subplots import make_subplots
 from kedro.framework.session import KedroSession
 from kedro.framework.startup import bootstrap_project
 
+
 # Defined paths based on Kedro's data structure at the top level
 KEDRO_PROJECT_ROOT = Path(__file__).parent
 DATA_00_EXTERNAL = KEDRO_PROJECT_ROOT / "data" / "00_external"
@@ -34,8 +35,8 @@ FIXED_ORDERS_RAW_PATH = DATA_00_EXTERNAL / "current_orders_data.csv"
 FIXED_TRANSACTIONS_RAW_PATH = DATA_00_EXTERNAL / "current_transactions_data.csv"
 
 # Sample data paths (assuming they are in data/01_raw as per Kedro convention)
-SAMPLE_ORDER_PATH = DATA_01_RAW / "Orders_v2.csv"
-SAMPLE_TRANS_PATH = DATA_01_RAW / "Transactional.csv"
+SAMPLE_ORDER_PATH = DATA_01_RAW / "current_orders_data.csv"
+SAMPLE_TRANS_PATH = DATA_01_RAW / "current_transactions_data.csv"
 
 
 bootstrap_project(KEDRO_PROJECT_ROOT)
@@ -86,7 +87,6 @@ def run_kedro_main_pipeline_and_load_ui_data():
     except Exception as e:
         st.error(f"Error running Kedro pipeline or loading UI data: {e}")
         return None
-
 
 # date formater
 def format_date_with_ordinal(date):
@@ -308,12 +308,14 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
                     .reset_index()
         if selected_segment == 'Overall':
             df_to_process = all_products_data
+
         else:
             df_to_process = top_products_by_segment_data.get(selected_segment, pd.DataFrame())
 
         # Then, check if the DataFrame is not empty before proceeding
         if not df_to_process.empty:
             # Determine the column to sort by and chart title based on metric_choice
+
             if metric_choice == "Total Quantity":
                 y_col = 'Total_Quantity'
                 y_axis_title = 'Total Quantity'
@@ -957,9 +959,9 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
             height=450,
             width=350 # Legend is redundant since x-axis labels are clear
         )
-    st.plotly_chart(fig, use_container_width=True)
-    # Heatmap for this pair (row-wise %)
-    st.markdown("### Heatmap (Row-wise % for selected pair)")
+        st.plotly_chart(fig, use_container_width=True)
+        # Heatmap for this pair (row-wise %)
+        st.markdown("### Heatmap (Row-wise % for selected pair)")
     key = pair_key(pair_dict, cp, np_, period_freq)
     if key is None:
         st.info("Selected period pair not found in artifacts.")

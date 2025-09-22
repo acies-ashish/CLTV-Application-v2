@@ -4,13 +4,7 @@ expected_orders_cols: # Renamed from mapping_orders_expected_cols
   Order ID: ["order_item_id", "Order ID", "order_id"]
   Product ID: ["Product ID", "product_id", "SKU", "Item Code", "product_id"]
   Quantity: ["Quantity", "Qty", "order_quantity", "quantity"]
-  Total Amount: ["Total Amount", "total_amount", "amount"]
   Unit Price: ["unit_price", "price"]
-  Order Date: ["Order Date", "order_date", "Order_date"]
-  Discount Code Used: ["Discount Code Used", "discount_code_used", "promo_code"]
-  Discount Value: ["Discount Value", "discount_value", "discount_amount"]
-  Shipping Cost: ["Shipping Cost", "shipping_cost", "freight"]
-  Total Payable: ["Total Payable", "total_payable", "amount_payable"]
   Return Status: ["Return Status", "return_stat", "is_returned"]
   Return Date: ["Return Date", "return_date"]
 
@@ -21,7 +15,11 @@ expected_transaction_cols: # Renamed from mapping_transactions_expected_cols
   User ID: ["customer_id", "User ID", "user_id", "Customer ID"]
   Purchase Date: ["purchase_timestamp", "Purchase Date", "purchase_date", "Transaction Date"]
   Payment Method: ["Payment Method", "payment_method", "Mode of Payment"]
-  Total Amount: ["total_payable","Total Payable", "total_payable", "Total_amount", "amount_payable", "Total_amount_per_transaction", "total_amount"]
+  Discount Code Used: ["Discount Code Used", "discount_code_used", "promo_code"]
+  Discount Value: ["Discount Value", "discount_value", "discount_amount"]
+  Shipping Cost: ["Shipping Cost", "shipping_cost", "freight"]
+  Total Amount: ["Total_amount","Total_amount_per_transaction", "total_amount"]
+  Total Payable: ["Total Payable", "total_payable", "amount_payable"]
 
 orders_df_name: "Orders" # Renamed from df_name_orders
 transactions_df_name: "Transactions" # Renamed from df_name_transactions
