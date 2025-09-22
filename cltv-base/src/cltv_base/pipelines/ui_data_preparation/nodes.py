@@ -168,7 +168,7 @@ def prepare_cltv_comparison_data(predicted_cltv_display_data: pd.DataFrame) -> p
     return segment_melted.sort_values(by='segment')
 
 
-def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
+def calculate_realization_curve_data(transactions_df: pd.DataFrame, rfm_segmented_df: pd.DataFrame) -> Dict[str, pd.DataFrame]:
 
     print("Calculating realization curve data...")
     
@@ -181,20 +181,10 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
     for segment in all_possible_segments:
         realization_data[segment] = pd.DataFrame(columns=["Period (Days)", "Avg CLTV per User"])
     
-    df = orders_df.copy()
-    df.columns = [c.strip().lower().replace(" ", "_") for c in df.columns]
-    if 'unit_price' in df.columns:
-        df.rename(columns={'unit_price': 'unitprice'}, inplace=True)
-    if 'user_id' not in df.columns and 'user id' in df.columns: # Handle potential variations
-        df.rename(columns={'user id': 'user_id'}, inplace=True)
+    df = transactions_df.copy()
 
-    required_cols = {'order_date', 'quantity', 'unitprice', 'user_id'}
-    if df.empty or not required_cols.issubset(set(df.columns)):
-        print(f"Warning: Required columns for realization curve not found: {required_cols - set(df.columns)} or empty orders data. Returning empty dict.")
-        return realization_data # Return pre-initialized empty dict for all segments
-
-    df['order_date'] = pd.to_datetime(df['order_date'], dayfirst=True)
-    df['revenue'] = df['quantity'] * df['unitprice']
+    df['Purchase Date'] = pd.to_datetime(df['Purchase Date'], dayfirst=True)
+    df['revenue'] = df['Total Amount']
 
     
 
@@ -216,14 +206,14 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
             continue 
 
         # Filter the full orders data by segment users
-        filtered_df_by_user = df[df['user_id'].isin(selected_users)]
-        user_count = filtered_df_by_user['user_id'].nunique()
+        filtered_df_by_user = df[df['User ID'].isin(selected_users)]
+        user_count = filtered_df_by_user['User ID'].nunique()
 
         if user_count == 0:
             continue
 
         # The start date for the curve calculation should be the earliest purchase date within the filtered data for this segment
-        start_date = filtered_df_by_user['order_date'].min()
+        start_date = filtered_df_by_user['Purchase Date'].min()
         if pd.isna(start_date):
             continue
 
@@ -233,7 +223,7 @@ def calculate_realization_curve_data(orders_df: pd.DataFrame, rfm_segmented_df: 
             cutoff = start_date + pd.Timedelta(days=days)
             
             revenue = filtered_df_by_user[
-                (filtered_df_by_user['order_date'] <= cutoff)
+                (filtered_df_by_user['Purchase Date'] <= cutoff)
             ]['revenue'].sum()
             avg_cltv = revenue / user_count
             cltv_values.append(round(avg_cltv, 2))

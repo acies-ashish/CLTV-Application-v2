@@ -1,5 +1,3 @@
-# src/cltv_base/pipelines/cltv_modeling/nodes.py
-
 import pandas as pd
 from lifetimes.utils import summary_data_from_transaction_data
 from lifetimes import BetaGeoFitter, GammaGammaFitter
@@ -59,5 +57,81 @@ def predict_cltv_bgf_ggf(transactions_df: pd.DataFrame) -> pd.DataFrame:
     print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df head:\n{summary_df.head()}")
     print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df null counts:\n{summary_df.isnull().sum()}")
     # --- End Diagnostic Print ---
-
+    print(summary_df)
     return summary_df[['User ID', 'predicted_cltv_3m']]
+
+
+# import pandas as pd
+# from lifetimes.utils import summary_data_from_transaction_data
+# from lifetimes import BetaGeoFitter, GammaGammaFitter
+
+# def predict_cltv_bgf_ggf(transactions_df: pd.DataFrame) -> pd.DataFrame:
+#     """
+#     Fits BG/NBD and Gamma-Gamma models to predict 3-month CLTV, purchase frequency, and AOV.
+#     This function acts as a Kedro node.
+#     """
+#     print("Predicting CLTV, purchase frequency, and AOV using BG/NBD + Gamma-Gamma models...")
+#     df = transactions_df.copy()
+    
+#     if not all(col in df.columns for col in ['Purchase Date', 'User ID', 'Total Amount']):
+#         raise KeyError("Missing required columns ('Purchase Date', 'User ID', 'Total Amount') in the transaction dataset for CLTV prediction.")
+
+#     df['Purchase Date'] = pd.to_datetime(df['Purchase Date'])
+
+    
+#     observation_period_end = df['Purchase Date'].max()
+
+#     summary_df = summary_data_from_transaction_data(
+#         df, 
+#         customer_id_col='User ID',
+#         datetime_col='Purchase Date',
+#         monetary_value_col='Total Amount',
+#         observation_period_end=observation_period_end
+#     )
+
+#     summary_df = summary_df[(summary_df['frequency'] > 0) & (summary_df['monetary_value'] > 0)]
+
+#     if summary_df.empty:
+#         print("Warning: No valid data for CLTV prediction after filtering. Returning empty DataFrame.")
+#         return pd.DataFrame(columns=['User ID', 'predicted_cltv_3m', 'predicted_purchase_frequency_3m', 'predicted_aov'])
+
+#     bgf = BetaGeoFitter(penalizer_coef=0.01)
+#     bgf.fit(summary_df['frequency'], summary_df['recency'], summary_df['T'])
+
+#     ggf = GammaGammaFitter(penalizer_coef=0.01)
+#     ggf.fit(summary_df['frequency'], summary_df['monetary_value'])
+
+    
+#     summary_df['predicted_cltv_3m'] = ggf.customer_lifetime_value(
+#         bgf,
+#         summary_df['frequency'],
+#         summary_df['recency'],
+#         summary_df['T'],
+#         summary_df['monetary_value'],
+#         time=3,
+#         freq='D', 
+#         discount_rate=0.01
+#     )
+
+#     # Predict future purchase frequency in 3 months
+#     summary_df['predicted_purchase_frequency_3m'] = bgf.predict(
+#         time=3, 
+#         frequency=summary_df['frequency'], 
+#         recency=summary_df['recency'], 
+#         T=summary_df['T']
+#     )
+
+#     # Predict AOV (Average Order Value)
+#     summary_df['predicted_aov'] = ggf.conditional_expected_monetary_value(
+#         summary_df['frequency'],
+#         summary_df['monetary_value']
+#     )
+
+#     summary_df = summary_df.reset_index()
+#     summary_df['User ID'] = summary_df['User ID'].astype(str)
+    
+
+#     print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df head:\n{summary_df.head()}")
+#     print(f"Diagnostic: predict_cltv_bgf_ggf - predicted_cltv_df null counts:\n{summary_df.isnull().sum()}")
+    
+#     return summary_df[['User ID', 'predicted_cltv_3m', 'predicted_purchase_frequency_3m', 'predicted_aov']]
