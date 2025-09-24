@@ -33,10 +33,12 @@ DATA_04_FEATURE.mkdir(parents=True, exist_ok=True)
 # Define the FIXED target paths for raw data that Kedro will read from
 FIXED_ORDERS_RAW_PATH = DATA_00_EXTERNAL / "current_orders_data.csv"
 FIXED_TRANSACTIONS_RAW_PATH = DATA_00_EXTERNAL / "current_transactions_data.csv"
+FIXED_BEHAVIORAL_RAW_PATH = DATA_00_EXTERNAL / "current_behavioral_data.csv"
 
 # Sample data paths (assuming they are in data/01_raw as per Kedro convention)
 SAMPLE_ORDER_PATH = DATA_01_RAW / "current_orders_data.csv"
 SAMPLE_TRANS_PATH = DATA_01_RAW / "current_transactions_data.csv"
+SAMPLE_BEHAVIORAL_PATH = DATA_01_RAW / "current_behavioral_data.csv"
 
 
 bootstrap_project(KEDRO_PROJECT_ROOT)
@@ -1096,10 +1098,17 @@ def run_streamlit_app():
         st.subheader("Data Source Selection")
         orders_file = st.file_uploader("Upload Orders CSV", type=["csv"], key="orders_upload")
         transactions_file = st.file_uploader("Upload Transactions CSV", type=["csv"], key="transactions_upload")
+        behavioral_file = st.file_uploader("Upload Behavioral CSV", type=["csv"], key="behavioral_upload")
 
         use_sample_data = st.button("Use Sample Data", key="use_sample_button")
 
-        if orders_file and transactions_file:
+        if orders_file and transactions_file and behavioral_file:
+            st.session_state['data_source'] = 'uploaded'
+            st.session_state['orders_file_obj'] = orders_file
+            st.session_state['transactions_file_obj'] = transactions_file
+            st.session_state['behavioral_file_obj'] = behavioral_file
+            st.success("Files uploaded. Click 'Process Data' to continue.")
+        elif orders_file and transactions_file:
             st.session_state['data_source'] = 'uploaded'
             st.session_state['orders_file_obj'] = orders_file
             st.session_state['transactions_file_obj'] = transactions_file
@@ -1108,6 +1117,7 @@ def run_streamlit_app():
             st.session_state['data_source'] = 'sample'
             st.session_state['orders_file_obj'] = None
             st.session_state['transactions_file_obj'] = None
+            st.session_state['behavioral_file_obj'] = None
             st.success("Using sample data. Click 'Process Data' to continue.")
 
         if st.button("Process Data", key="process_data_button"):
@@ -1123,13 +1133,16 @@ def run_streamlit_app():
                             f.write(st.session_state['orders_file_obj'].getbuffer())
                         with open(FIXED_TRANSACTIONS_RAW_PATH, "wb") as f:
                             f.write(st.session_state['transactions_file_obj'].getbuffer())
+                        with open(FIXED_BEHAVIORAL_RAW_PATH, "wb") as f:
+                            f.write(st.session_state['behavioral_file_obj'].getbuffer())
                         
-                        st.info(f"Uploaded files saved to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}")
+                        st.info(f"Uploaded files saved to {FIXED_ORDERS_RAW_PATH}, {FIXED_TRANSACTIONS_RAW_PATH}, and {FIXED_BEHAVIORAL_RAW_PATH}")
 
                     elif st.session_state['data_source'] == 'sample':
                         shutil.copy(SAMPLE_ORDER_PATH, FIXED_ORDERS_RAW_PATH)
                         shutil.copy(SAMPLE_TRANS_PATH, FIXED_TRANSACTIONS_RAW_PATH)
-                        st.info(f"Sample files copied to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}")
+                        shutil.copy(SAMPLE_BEHAVIORAL_PATH, FIXED_BEHAVIORAL_RAW_PATH)
+                        st.info(f"Sample files copied to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}, {FIXED_BEHAVIORAL_RAW_PATH}")
                     
                     st.info("Processing Data")
 
