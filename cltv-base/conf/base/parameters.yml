@@ -21,6 +21,30 @@ expected_transaction_cols: # Renamed from mapping_transactions_expected_cols
   Total Amount: ["Total_amount","Total_amount_per_transaction", "total_amount"]
   Total Payable: ["Total Payable", "total_payable", "amount_payable"]
 
+expected_behavioral_cols:
+  Visit ID: ["visit_id", "Visit ID", "visitID"]
+  Customer ID: ["customer_id", "Customer ID", "user_id", "User ID"]
+  Session ID: ["session_id", "Session ID", "sess_id"]
+  Visit Timestamp: ["visit_timestamp", "Visit Timestamp", "session_start_time", "visit_time"]
+  Channel: ["channel", "Channel", "traffic_source", "source_channel"]
+  Geo Location: ["geo_location", "Geo Location", "location", "region", "country"]
+  Device ID: ["device_id", "Device ID", "dev_id"]
+  Device Type: ["device_type", "Device Type", "platform", "user_device"]
+  Cookie ID: ["cookie_id", "Cookie ID", "browser_cookie"]
+  OS: ["os", "OS", "operating_system"]
+  Entry Page: ["entry_page", "Entry Page", "landing_page"]
+  Exit Page: ["exit_page", "Exit Page", "last_page"]
+  Sponsored Listing Viewed: ["sponsored_listing_viewed", "Sponsored Listing Viewed", "sponsored_ad_view"]
+  Banner Viewed: ["banner_viewed", "Banner Viewed", "ad_banner_seen"]
+  Homepage Promo Seen: ["homepage_promo_seen", "Homepage Promo Seen", "home_promo_view"]
+  Product Search View: ["product_search_view", "Product Search View", "search_performed"]
+  Session Total Cost: ["session_total_cost", "Session Total Cost", "session_spent"]
+  Session Duration: ["session_duration", "Session Duration", "time_spent"]
+  Page Views: ["page_views", "Page Views", "pages_visited"]
+  Bounce Flag: ["bounce_flag", "Bounce Flag", "bounced", "is_bounce"]
+  Ad Campaign ID: ["ad_campaign_id", "Ad Campaign ID", "campaign_id"]
+
+
 orders_df_name: "Orders" # Renamed from df_name_orders
 transactions_df_name: "Transactions" # Renamed from df_name_transactions
 
