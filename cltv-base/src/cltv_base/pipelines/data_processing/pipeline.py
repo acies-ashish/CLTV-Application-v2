@@ -21,9 +21,15 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="standardize_transactions_columns",
             ),
             node(
+                func=standardize_columns,
+                inputs=["behavioral_raw", "params:expected_behavioral_cols", "params:behavioral_df_name"],
+                outputs="behavioral_standardized",
+                name="standardize_behavioral_columns",
+            ),
+            node(
                 func=convert_data_types,
-                inputs=["orders_standardized", "transactions_standardized"],
-                outputs=["orders_typed", "transactions_typed"],
+                inputs=["orders_standardized", "transactions_standardized","behavioral_standardized"],
+                outputs=["orders_typed", "transactions_typed","behavioral_typed"],
                 name="convert_raw_data_types",
             ),
             node(
