@@ -47,6 +47,7 @@ expected_behavioral_cols:
 
 orders_df_name: "Orders" # Renamed from df_name_orders
 transactions_df_name: "Transactions" # Renamed from df_name_transactions
+behavioral_df_name: "Behavioral" # Renamed from df_name_transactions
 
 # Operations Parameters
 at_risk_threshold_days: 70 # Customers with recency > this are considered at risk
