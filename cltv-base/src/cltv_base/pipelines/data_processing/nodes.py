@@ -135,3 +135,87 @@ def merge_orders_transactions(orders_df: pd.DataFrame, transactions_df: pd.DataF
         df_orders_merged = orders_df.copy()
     print(df_orders_merged.info())
     return df_orders_merged
+
+def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataFrame:
+    """
+    Aggregates the behavioral dataset at the Customer ID level.
+    Handles missing columns gracefully (skips them if not present).
+    Produces cleaner, business-friendly column names.
+    """
+
+    print("Aggregating behavioral data at customer level...")
+
+    # Define aggregation logic
+    agg_map = {
+        "Visit ID": "nunique",
+        "Session ID": "nunique",
+        "Visit Timestamp": ["min", "max"],
+        "Channel": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Geo Location": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Device ID": "nunique",
+        "Device Type": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Cookie ID": "nunique",
+        "OS": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Entry Page": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Exit Page": lambda x: x.mode().iloc[0] if not x.mode().empty else None,
+        "Sponsored Listing Viewed": "sum",
+        "Banner Viewed": "sum",
+        "Homepage Promo Seen": "sum",
+        "Product Search View": "sum",
+        "Session Total Cost": ["sum", "mean"],
+        "Session Duration": ["sum", "mean"],
+        "Page Views": ["sum", "mean"],
+        "Bounce Flag": ["sum", "mean"],
+        "Ad Campaign ID": lambda x: list(set(x.dropna())),
+    }
+
+    # Filter aggregation map to only include columns present in the dataframe
+    available_agg_map = {
+        col: agg for col, agg in agg_map.items() if col in behavioral_df.columns
+    }
+
+    if "Customer ID" not in behavioral_df.columns:
+        raise ValueError("Customer ID column is required for aggregation.")
+
+    # Perform aggregation
+    agg_df = behavioral_df.groupby("Customer ID").agg(available_agg_map).reset_index()
+
+    # Flatten multi-level column names
+    agg_df.columns = [
+        " ".join(col).strip() if isinstance(col, tuple) else col
+        for col in agg_df.columns.values
+    ]
+
+    # Create a nicer mapping for column names
+    rename_map = {
+        "Visit ID nunique": "Total Unique Visits",
+        "Session ID nunique": "Total Unique Sessions",
+        "Visit Timestamp min": "First Visit Timestamp",
+        "Visit Timestamp max": "Last Visit Timestamp",
+        "Visit Timestamp count": "Total Visits",
+        "Device ID nunique": "Total Unique Devices",
+        "Cookie ID nunique": "Total Unique Cookies",
+        "Sponsored Listing Viewed sum": "Total Sponsored Listings Viewed",
+        "Banner Viewed sum": "Total Banners Viewed",
+        "Homepage Promo Seen sum": "Total Homepage Promos Seen",
+        "Product Search View sum": "Total Product Searches Viewed",
+        "Session Total Cost sum": "Total Session Cost",
+        "Session Total Cost mean": "Avg Session Cost",
+        "Session Duration sum": "Total Session Duration",
+        "Session Duration mean": "Avg Session Duration",
+        "Page Views sum": "Total Page Views",
+        "Page Views mean": "Avg Page Views",
+        "Bounce Flag sum": "Total Bounces",
+        "Bounce Flag mean": "Bounce Rate",
+        "Channel <lambda>": "Channel",
+        "Geo Location <lambda>": "Geo Location",
+        "Device Type <lambda>":"Device Type",
+        "Exit Page <lambda>": "Exit Page"
+
+
+    }
+
+    # Apply renaming only for existing columns
+    agg_df = agg_df.rename(columns={k: v for k, v in rename_map.items() if k in agg_df.columns})
+    print(agg_df.info())
+    return agg_df

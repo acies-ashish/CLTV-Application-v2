@@ -1,5 +1,5 @@
 from kedro.pipeline import Pipeline, node
-from .nodes import standardize_columns, convert_data_types, merge_orders_transactions
+from .nodes import standardize_columns, convert_data_types, merge_orders_transactions, aggregate_behavioral_customer_level
 
 def create_pipeline(**kwargs) -> Pipeline:
     """
@@ -37,6 +37,12 @@ def create_pipeline(**kwargs) -> Pipeline:
                 inputs=["orders_typed", "transactions_typed"],
                 outputs="orders_merged_with_user_id",
                 name="merge_orders_and_transactions",
+            ),
+            node(
+                func=aggregate_behavioral_customer_level,
+                inputs=["behavioral_typed"],
+                outputs="customer_aggregated_behavioral_data",
+                name="customer_aggregated_behavioral_data_node"
             ),
         ],
         tags="data_processing" # Optional: Add a tag for this pipeline
