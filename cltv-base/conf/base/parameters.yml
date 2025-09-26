@@ -5,6 +5,7 @@ expected_orders_cols: # Renamed from mapping_orders_expected_cols
   Product ID: ["Product ID", "product_id", "SKU", "Item Code", "product_id"]
   Quantity: ["Quantity", "Qty", "order_quantity", "quantity"]
   Unit Price: ["unit_price", "price"]
+  Total Product Price: ["total_amount", "total_product_price"]
   Return Status: ["Return Status", "return_stat", "is_returned"]
   Return Date: ["Return Date", "return_date"]
 

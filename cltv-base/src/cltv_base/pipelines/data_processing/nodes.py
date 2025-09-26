@@ -133,7 +133,7 @@ def merge_orders_transactions(orders_df: pd.DataFrame, transactions_df: pd.DataF
     else:
         print("Warning: 'Transaction ID' or 'User ID' not found in both orders and transactions for merging. Skipping merge.")
         df_orders_merged = orders_df.copy()
-    print(df_orders_merged.info())
+        print(df_orders_merged.info())
     return df_orders_merged
 
 def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataFrame:
@@ -219,3 +219,90 @@ def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataF
     agg_df = agg_df.rename(columns={k: v for k, v in rename_map.items() if k in agg_df.columns})
     print(agg_df.info())
     return agg_df
+
+def aggregate_orders_transactions_customer_level(
+    orders_txn_df: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Aggregates merged orders+transactions dataset at the User ID (customer) level.
+    Focuses on spend and counts (transactions, orders, unique products).
+    """
+
+    print("Aggregating orders+transactions at customer level...")
+
+    if "User ID" not in orders_txn_df.columns:
+        raise ValueError("'User ID' column is required for customer-level aggregation.")
+
+    # Define aggregation logic (only what we need)
+    agg_map = {
+        "Transaction ID": "nunique",          # total unique transactions
+        "Order ID": "nunique",                # total unique orders
+        "Product ID": "nunique" if "Product ID" in orders_txn_df.columns else None,
+        "Total Amount": "sum" if "Total Amount" in orders_txn_df.columns else None,
+        "Total Product Price": "sum" if "Total Product Price" in orders_txn_df.columns else None,
+        "Total Payable": "sum" if "Total Payable" in orders_txn_df.columns else None,
+        # "Discount Value": "sum" if "Discount Value" in orders_txn_df.columns else None,
+        # "Shipping Cost": "sum" if "Shipping Cost" in orders_txn_df.columns else None,
+        # "Purchase Date": ["min", "max"] if "Purchase Date" in orders_txn_df.columns else None,
+    }
+
+    # Filter out Nones (columns not present in dataframe)
+    agg_map = {col: agg for col, agg in agg_map.items() if agg is not None and col in orders_txn_df.columns}
+
+    # Perform aggregation
+    agg_df = orders_txn_df.groupby("User ID").agg(agg_map).reset_index()
+
+    # Flatten multi-level columns
+    agg_df.columns = [
+        " ".join(col).strip() if isinstance(col, tuple) else col
+        for col in agg_df.columns.values
+    ]
+
+    # Business-friendly rename map
+    rename_map = {
+        "Transaction ID nunique": "Total Transactions",
+        "Order ID nunique": "Total Orders",
+        "Product ID nunique": "Total Unique Products",
+        "Total Product Price": "Total Order Value",
+        "Total Amount sum": "Total Product Sum",
+        "Total Payable sum": "Total Payable Value",
+        "Discount Value sum": "Total Discounts Availed",
+        "Shipping Cost sum": "Total Shipping Paid",
+        "Purchase Date min": "First Purchase Date",
+        "Purchase Date max": "Last Purchase Date",
+    }
+    agg_df = agg_df.rename(columns={k: v for k, v in rename_map.items() if k in agg_df.columns})
+    print(agg_df.info())
+    return agg_df
+
+
+def merge_customer_behavioral_data(
+    orders_txn_customer_df: pd.DataFrame,
+    behavioral_agg_df: pd.DataFrame
+) -> pd.DataFrame:
+    """
+    Merges aggregated customer-level orders+transactions data 
+    with aggregated behavioral data.
+    Handles missing keys gracefully.
+    """
+
+    print("Merging aggregated customer-level orders+transactions with behavioral data...")
+
+    # Ensure ID columns are present
+    if "User ID" not in orders_txn_customer_df.columns:
+        print("Warning: 'User ID' not found in orders+transactions customer-level dataset. Skipping merge.")
+        return orders_txn_customer_df
+
+    if "Customer ID" not in behavioral_agg_df.columns:
+        print("Warning: 'Customer ID' not found in aggregated behavioral dataset. Skipping merge.")
+        return behavioral_agg_df
+
+    # Perform merge (User ID, Customer ID)
+    merged_df = orders_txn_customer_df.merge(
+        behavioral_agg_df,
+        left_on="User ID",
+        right_on="Customer ID",
+        how="left"
+    )
+    print(merged_df.info())
+    return merged_df
