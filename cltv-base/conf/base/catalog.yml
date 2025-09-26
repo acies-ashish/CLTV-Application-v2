@@ -45,6 +45,15 @@ customer_aggregated_behavioral_data:
   type: pandas.ParquetDataset 
   filepath: data/02_intermediate/customer_aggregated_behavioral_data.parquet
 
+customer_aggregated_orders_transaction_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_aggregated_transaction_data.parquet
+
+customer_level_merged_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_level_merged_data.parquet
+
+
 # Datasets for core operations
 customer_level_features:
   type: pandas.ParquetDataset
