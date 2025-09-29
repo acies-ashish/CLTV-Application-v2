@@ -111,7 +111,6 @@ def convert_data_types(
         if col in behavioral_df.columns:
             behavioral_df[col] = behavioral_df[col].astype(str)
 
-    behavioral_df.to_csv('bh_check.csv')
 
     return orders_df, transactions_df, behavioral_df
 
@@ -216,7 +215,6 @@ def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataF
 
 
     }
-    agg_df.to_csv('behv_cehck_2.csv')
 
     # Apply renaming only for existing columns
     agg_df = agg_df.rename(columns={k: v for k, v in rename_map.items() if k in agg_df.columns})
@@ -307,6 +305,5 @@ def merge_customer_ord_txn_behavioral_data(
         right_on="Customer ID",
         how="left"
     )
-    merged_df.to_csv('merged_finl_check.csv')
     print(merged_df.info())
     return merged_df
