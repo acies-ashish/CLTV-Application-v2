@@ -5,6 +5,8 @@ expected_orders_cols: # Renamed from mapping_orders_expected_cols
   Product ID: ["Product ID", "product_id", "SKU", "Item Code", "product_id"]
   Quantity: ["Quantity", "Qty", "order_quantity", "quantity"]
   Unit Price: ["unit_price", "price"]
+  Total Product Price: ["total_amount", "total_product_price"]
+
   Return Status: ["Return Status", "return_stat", "is_returned"]
   Return Date: ["Return Date", "return_date"]
 
@@ -30,7 +32,7 @@ expected_behavioral_cols:
   Geo Location: ["geo_location", "Geo Location", "location", "region", "country"]
   Device ID: ["device_id", "Device ID", "dev_id"]
   Device Type: ["device_type", "Device Type", "platform", "user_device"]
-  Cookie ID: ["cookie_id", "Cookie ID", "browser_cookie"]
+  # Cookie ID: ["cookie_id", "Cookie ID", "browser_cookie"]
   OS: ["os", "OS", "operating_system"]
   Entry Page: ["entry_page", "Entry Page", "landing_page"]
   Exit Page: ["exit_page", "Exit Page", "last_page"]
@@ -47,6 +49,7 @@ expected_behavioral_cols:
 
 orders_df_name: "Orders" # Renamed from df_name_orders
 transactions_df_name: "Transactions" # Renamed from df_name_transactions
+behavioral_df_name: "Behavioral" # Renamed from df_name_transactions
 
 # Operations Parameters
 at_risk_threshold_days: 70 # Customers with recency > this are considered at risk

@@ -116,7 +116,6 @@ def calculate_customer_level_features(transactions_df: pd.DataFrame) -> pd.DataF
     customer_level['CLTV_90d'] = round(customer_level['monetary'] / customer_level['lifespan_90d'].replace(0, 0.1), 2)
     customer_level['CLTV_total'] = customer_level['monetary']
     
-    customer_level.to_csv("abc.csv", index=False)
     return customer_level
 
 
@@ -176,4 +175,65 @@ def calculate_historical_cltv(df: pd.DataFrame) -> pd.DataFrame:
             df['CLTV'] = 0.0
         return df
     df['CLTV'] = df['aov'] * df['frequency']
+    return df
+
+def calculate_engagement_score(ads_df: pd.DataFrame, weights: Optional[dict] = None, q: int = 5) -> pd.DataFrame:
+    """
+    Calculates engagement score for customers based on visits, sessions,
+    page views, and bounce rate.
+    
+    Parameters
+    ----------
+    ads_df : pd.DataFrame
+        Input DataFrame containing at least the columns:
+        ['Total Unique Sessions', 'Total Unique Visits', 'Total Page Views', 'Bounce Rate'].
+    weights : dict, optional
+        Weights for each metric. Default: equal weights.
+        Example: {'sessions': 0.25, 'visits': 0.25, 'page_views': 0.3, 'bounce_rate': 0.2}
+    q : int, default=5
+        Number of quantile buckets for scoring.
+    
+    Returns
+    -------
+    pd.DataFrame
+        Original DataFrame with added score columns and Engagement Score.
+    """
+    
+    required_cols = ['Total Unique Sessions', 'Total Unique Visits', 'Total Page Views', 'Bounce Rate']
+    missing = [c for c in required_cols if c not in ads_df.columns]
+    if missing:
+        raise ValueError(f"Missing required columns for engagement scoring: {missing}")
+    
+    df = ads_df.copy()
+    
+    # Default equal weights if not provided
+    if weights is None:
+        weights = {
+            'sessions': 0.25,
+            'visits': 0.25,
+            'page_views': 0.25,
+            'bounce_rate': 0.25
+        }
+    
+    # Quantile-based scoring (1–5)
+    df['sessions_score'] = safe_qcut(df['Total Unique Sessions'], q=q, labels=list(range(1, q+1)), ascending=True)
+    df['visits_score'] = safe_qcut(df['Total Unique Visits'], q=q, labels=list(range(1, q+1)), ascending=True)
+    df['pageviews_score'] = safe_qcut(df['Total Page Views'], q=q, labels=list(range(1, q+1)), ascending=True)
+    df['bounce_score'] = safe_qcut(df['Bounce Rate'], q=q, labels=list(range(1, q+1)), ascending=False)  # lower is better
+    
+    # Convert scores to numeric
+    for col in ['sessions_score', 'visits_score', 'pageviews_score', 'bounce_score']:
+        df[col] = pd.to_numeric(df[col], errors='coerce').fillna(3)  # fallback to neutral if NA
+    
+    # Weighted engagement score scaled to 0–100
+    df['Engagement_Score'] = (
+        df['sessions_score'] * weights['sessions'] +
+        df['visits_score'] * weights['visits'] +
+        df['pageviews_score'] * weights['page_views'] +
+        df['bounce_score'] * weights['bounce_rate']
+    )
+    
+    # Normalize to 0–100
+    df['Engagement_Score'] = (df['Engagement_Score'] / q) * 100
+    
     return df

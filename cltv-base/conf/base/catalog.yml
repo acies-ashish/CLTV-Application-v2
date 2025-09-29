@@ -8,6 +8,10 @@ transactions_raw:
   type: pandas.CSVDataset
   filepath: data/00_external/current_transactions_data.csv
 
+behavioral_raw:
+  type: pandas.CSVDataset
+  filepath: data/00_external/current_behavioral_data.csv
+
 # Intermediate datasets (outputs of your preprocessing nodes)
 orders_standardized:
   type: pandas.ParquetDataset
@@ -17,6 +21,10 @@ transactions_standardized:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/transactions_standardized.parquet
 
+behavioral_standardized:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/behavioral_standardized.parquet
+
 orders_typed:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/orders_typed.parquet
@@ -25,9 +33,26 @@ transactions_typed:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/transactions_typed.parquet
 
-orders_merged_with_user_id:
+behavioral_typed:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/behavioral_typed.parquet
+
+orders_merged_with_user_id: #need to add behavioral merged later.
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/orders_merged_with_user_id.parquet
+
+customer_aggregated_behavioral_data:
+  type: pandas.ParquetDataset 
+  filepath: data/02_intermediate/customer_aggregated_behavioral_data.parquet
+
+customer_aggregated_orders_transaction_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_aggregated_transaction_data.parquet
+
+customer_level_merged_data:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_level_merged_data.parquet
+
 
 # Datasets for core operations
 customer_level_features:
@@ -65,6 +90,11 @@ churn_labels_y:
 rfm_segmented_survival_data:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/rfm_segmented_survival_data.parquet
+
+#engagement score calculation
+customer_level_merged_data_engagement_score:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_level_merged_data_engagement_score.parquet
 
 # Model outputs
 predicted_cltv_df:
