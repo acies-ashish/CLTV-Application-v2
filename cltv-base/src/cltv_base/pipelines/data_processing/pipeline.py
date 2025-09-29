@@ -5,7 +5,7 @@ from .nodes import (
     merge_orders_transactions, 
     aggregate_behavioral_customer_level, 
     aggregate_orders_transactions_customer_level, 
-    merge_customer_behavioral_data
+    merge_customer_ord_txn_behavioral_data
 
 )
 
@@ -59,7 +59,7 @@ def create_pipeline(**kwargs) -> Pipeline:
                 name="customer_aggregated_orders_transaction_node"
             ),
             node(
-                func=merge_customer_behavioral_data,
+                func=merge_customer_ord_txn_behavioral_data,
                 inputs=["customer_aggregated_orders_transaction_data", "customer_aggregated_behavioral_data"],
                 outputs="customer_level_merged_data",
                 name="customer_level_merged_data_node"

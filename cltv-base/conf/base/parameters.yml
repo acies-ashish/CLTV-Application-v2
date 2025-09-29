@@ -31,7 +31,7 @@ expected_behavioral_cols:
   Geo Location: ["geo_location", "Geo Location", "location", "region", "country"]
   Device ID: ["device_id", "Device ID", "dev_id"]
   Device Type: ["device_type", "Device Type", "platform", "user_device"]
-  Cookie ID: ["cookie_id", "Cookie ID", "browser_cookie"]
+  # Cookie ID: ["cookie_id", "Cookie ID", "browser_cookie"]
   OS: ["os", "OS", "operating_system"]
   Entry Page: ["entry_page", "Entry Page", "landing_page"]
   Exit Page: ["exit_page", "Exit Page", "last_page"]

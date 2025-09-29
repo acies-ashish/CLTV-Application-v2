@@ -133,16 +133,16 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     
     row1_kpis = st.columns(3, gap="small")
     with row1_kpis[0]: kpi_card("Total Customers", total_customers, color="black")
-    with row1_kpis[1]: kpi_card("Total Revenue", f"${total_revenue:,.0f}", color="black")
+    with row1_kpis[1]: kpi_card("Total Revenue", f"₹{total_revenue:,.0f}", color="black")
     with row1_kpis[2]: kpi_card("Total Orders", f"{total_Orders:.0f}", color="black")
     
     
     st.markdown("<div style='margin-top: 15px;'></div>", unsafe_allow_html=True)
 
     row2_kpis = st.columns(3, gap="small")
-    with row2_kpis[0]: kpi_card("Average CLTV", f"${avg_cltv:,.0f}")
+    with row2_kpis[0]: kpi_card("Average CLTV", f"₹{avg_cltv:,.0f}")
     with row2_kpis[1]: kpi_card("Avg Transactions/User", f"{avg_orders_per_user:.0f}")
-    with row2_kpis[2]: kpi_card("Average Order Value", f"${avg_aov:.0f}")
+    with row2_kpis[2]: kpi_card("Average Order Value", f"₹{avg_aov:.0f}")
 
 
     st.divider()

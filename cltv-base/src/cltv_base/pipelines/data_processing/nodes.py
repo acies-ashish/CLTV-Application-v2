@@ -6,7 +6,7 @@ from typing import Tuple
 def _auto_map_column(column_list, candidate_names):
     
     for name in candidate_names:
-        match = difflib.get_close_matches(name, column_list, n=1, cutoff=0.6)
+        match = difflib.get_close_matches(name, column_list, n=1, cutoff=0.75)
         if match:
             return match[0]
     return None
@@ -75,7 +75,7 @@ def convert_data_types(
         print("Warning: 'Visit Timestamp' not found in behavioral_df.")
 
     numeric_cols_behavioral = [
-        'Session Total Cost',
+        # 'Session Total Cost',
         'Session Duration',
         'Page Views'
     ]
@@ -110,6 +110,8 @@ def convert_data_types(
     for col in str_cols_behavioral:
         if col in behavioral_df.columns:
             behavioral_df[col] = behavioral_df[col].astype(str)
+
+    behavioral_df.to_csv('bh_check.csv')
 
     return orders_df, transactions_df, behavioral_df
 
@@ -162,7 +164,7 @@ def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataF
         "Banner Viewed": "sum",
         "Homepage Promo Seen": "sum",
         "Product Search View": "sum",
-        "Session Total Cost": ["sum", "mean"],
+        # "Session Total Cost": ["sum", "mean"],
         "Session Duration": ["sum", "mean"],
         "Page Views": ["sum", "mean"],
         "Bounce Flag": ["sum", "mean"],
@@ -214,6 +216,7 @@ def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataF
 
 
     }
+    agg_df.to_csv('behv_cehck_2.csv')
 
     # Apply renaming only for existing columns
     agg_df = agg_df.rename(columns={k: v for k, v in rename_map.items() if k in agg_df.columns})
@@ -276,7 +279,7 @@ def aggregate_orders_transactions_customer_level(
     return agg_df
 
 
-def merge_customer_behavioral_data(
+def merge_customer_ord_txn_behavioral_data(
     orders_txn_customer_df: pd.DataFrame,
     behavioral_agg_df: pd.DataFrame
 ) -> pd.DataFrame:
@@ -304,5 +307,6 @@ def merge_customer_behavioral_data(
         right_on="Customer ID",
         how="left"
     )
+    merged_df.to_csv('merged_finl_check.csv')
     print(merged_df.info())
     return merged_df

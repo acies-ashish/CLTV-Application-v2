@@ -177,3 +177,4 @@ def calculate_historical_cltv(df: pd.DataFrame) -> pd.DataFrame:
         return df
     df['CLTV'] = df['aov'] * df['frequency']
     return df
+
