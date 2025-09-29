@@ -145,6 +145,7 @@ def show_findings_ui(kpi_data: Dict, segment_summary_data: pd.DataFrame, segment
     with row2_kpis[2]: kpi_card("Average Order Value", f"₹{avg_aov:.0f}")
 
 
+
     st.divider()
     st.subheader("Segment Visuals")
 
@@ -1007,6 +1008,7 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
         default=seg_list
     )
 
+
     
 
     # --- Data Preparation for Sankey Chart ---
@@ -1089,6 +1091,7 @@ def run_streamlit_app():
 
     tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
         "Upload / Load Data", "Findings", "Predictions", "Realization Curve", "Churn", "Customer Migration"
+
     ])
 
     with tab1:
@@ -1116,6 +1119,7 @@ def run_streamlit_app():
                 return  # Stop execution until minimum files are ready
 
             with st.spinner("Preparing data..."):
+
                 try:
                     if st.session_state['data_source'] == 'uploaded':
                         # Save Orders
@@ -1131,11 +1135,13 @@ def run_streamlit_app():
 
                         st.success(f"Uploaded files saved. Behavioral file: {'Yes' if behavioral_file else 'No'}")
 
+
                     elif st.session_state['data_source'] == 'sample':
                         shutil.copy(SAMPLE_ORDER_PATH, FIXED_ORDERS_RAW_PATH)
                         shutil.copy(SAMPLE_TRANS_PATH, FIXED_TRANSACTIONS_RAW_PATH)
                         shutil.copy(SAMPLE_BEHAVIORAL_PATH, FIXED_BEHAVIORAL_RAW_PATH)
                         st.success("Using sample data. All files copied.")
+
 
                     st.info("Processing Data...")
                     st.session_state['preprocessing_triggered'] = True
@@ -1170,6 +1176,7 @@ def run_streamlit_app():
             show_churn_tab_ui(ui_data['rfm_segmented'], ui_data['churn_summary'], ui_data['active_days_summary'], ui_data['churn_detailed_view'])
         with tab6:
             show_customer_migration_tab_ui(ui_data['monthly_rfm'], ui_data['quarterly_rfm'], ui_data['monthly_pair_migrations'], ui_data['quarterly_pair_migrations'])
+
     else:
         for tab in [tab2, tab3, tab4, tab5, tab6]:
             with tab:

@@ -32,7 +32,6 @@ def convert_data_types(
     transactions_df: pd.DataFrame, 
     behavioral_df: pd.DataFrame
 ) -> Tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    
     print("Converting data types...")
 
     # --- Transactions ---
@@ -135,6 +134,7 @@ def merge_orders_transactions(orders_df: pd.DataFrame, transactions_df: pd.DataF
         print("Warning: 'Transaction ID' or 'User ID' not found in both orders and transactions for merging. Skipping merge.")
         df_orders_merged = orders_df.copy()
         print(df_orders_merged.info())
+
     return df_orders_merged
 
 def aggregate_behavioral_customer_level(behavioral_df: pd.DataFrame) -> pd.DataFrame:
