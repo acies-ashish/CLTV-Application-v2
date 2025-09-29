@@ -91,6 +91,11 @@ rfm_segmented_survival_data:
   type: pandas.ParquetDataset
   filepath: data/02_intermediate/rfm_segmented_survival_data.parquet
 
+#engagement score calculation
+customer_level_merged_data_engagement_score:
+  type: pandas.ParquetDataset
+  filepath: data/02_intermediate/customer_level_merged_data_engagement_score.parquet
+
 # Model outputs
 predicted_cltv_df:
   type: pandas.ParquetDataset

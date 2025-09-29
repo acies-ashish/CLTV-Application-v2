@@ -1077,21 +1077,18 @@ def show_customer_migration_tab_ui(monthly_rfm: pd.DataFrame,
     else:
         st.info("No links to display with the current selection.")
 
-
 def run_streamlit_app():
     st.set_page_config(page_title="CLTV Dashboard", layout="wide")
     st.title("Customer Lifetime Value Dashboard")
 
-
-
+    # Initialize session state
     if 'ui_data' not in st.session_state:
         st.session_state['ui_data'] = None
     if 'preprocessing_done' not in st.session_state:
         st.session_state['preprocessing_done'] = False
-    
-    # Renamed 'Insights' to 'Findings'
-    tab1, tab2, tab3, tab4, tab5, tab6= st.tabs([
-        "Upload / Load Data", "Findings",  "Predictions", "Realization Curve", "Churn", "Customer Migration"
+
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "Upload / Load Data", "Findings", "Predictions", "Realization Curve", "Churn", "Customer Migration"
     ])
 
     with tab1:
@@ -1102,66 +1099,66 @@ def run_streamlit_app():
 
         use_sample_data = st.button("Use Sample Data", key="use_sample_button")
 
-        if orders_file and transactions_file and behavioral_file:
-            st.session_state['data_source'] = 'uploaded'
-            st.session_state['orders_file_obj'] = orders_file
-            st.session_state['transactions_file_obj'] = transactions_file
-            st.session_state['behavioral_file_obj'] = behavioral_file
-            st.success("Files uploaded. Click 'Process Data' to continue.")
-        elif orders_file and transactions_file:
-            st.session_state['data_source'] = 'uploaded'
-            st.session_state['orders_file_obj'] = orders_file
-            st.session_state['transactions_file_obj'] = transactions_file
-            st.success("Files uploaded. Click 'Process Data' to continue.")
-        elif use_sample_data:
-            st.session_state['data_source'] = 'sample'
-            st.session_state['orders_file_obj'] = None
-            st.session_state['transactions_file_obj'] = None
-            st.session_state['behavioral_file_obj'] = None
-            st.success("Using sample data. Click 'Process Data' to continue.")
-
         if st.button("Process Data", key="process_data_button"):
-            st.cache_data.clear() 
-            if 'data_source' not in st.session_state:
-                st.warning("Please upload files or select sample data first.")
-                return
+            st.cache_data.clear()
 
-            with st.spinner("Preparing data"):
+            # Decide data source
+            if use_sample_data:
+                st.session_state['data_source'] = 'sample'
+            elif orders_file and transactions_file and behavioral_file:
+                st.session_state['data_source'] = 'uploaded'
+            elif orders_file and transactions_file:
+                st.session_state['data_source'] = 'uploaded'
+                behavioral_file = None
+                st.warning("Behavioral file not uploaded. Proceeding with Orders + Transactions only.")
+            else:
+                st.warning("Please upload at least Orders and Transactions files, or select sample data.")
+                return  # Stop execution until minimum files are ready
+
+            with st.spinner("Preparing data..."):
                 try:
                     if st.session_state['data_source'] == 'uploaded':
+                        # Save Orders
                         with open(FIXED_ORDERS_RAW_PATH, "wb") as f:
-                            f.write(st.session_state['orders_file_obj'].getbuffer())
+                            f.write(orders_file.getbuffer())
+                        # Save Transactions
                         with open(FIXED_TRANSACTIONS_RAW_PATH, "wb") as f:
-                            f.write(st.session_state['transactions_file_obj'].getbuffer())
-                        with open(FIXED_BEHAVIORAL_RAW_PATH, "wb") as f:
-                            f.write(st.session_state['behavioral_file_obj'].getbuffer())
-                        
-                        st.info(f"Uploaded files saved to {FIXED_ORDERS_RAW_PATH}, {FIXED_TRANSACTIONS_RAW_PATH}, and {FIXED_BEHAVIORAL_RAW_PATH}")
+                            f.write(transactions_file.getbuffer())
+                        # Save Behavioral only if uploaded
+                        if behavioral_file:
+                            with open(FIXED_BEHAVIORAL_RAW_PATH, "wb") as f:
+                                f.write(behavioral_file.getbuffer())
+
+                        st.success(f"Uploaded files saved. Behavioral file: {'Yes' if behavioral_file else 'No'}")
 
                     elif st.session_state['data_source'] == 'sample':
                         shutil.copy(SAMPLE_ORDER_PATH, FIXED_ORDERS_RAW_PATH)
                         shutil.copy(SAMPLE_TRANS_PATH, FIXED_TRANSACTIONS_RAW_PATH)
                         shutil.copy(SAMPLE_BEHAVIORAL_PATH, FIXED_BEHAVIORAL_RAW_PATH)
-                        st.info(f"Sample files copied to {FIXED_ORDERS_RAW_PATH} and {FIXED_TRANSACTIONS_RAW_PATH}, {FIXED_BEHAVIORAL_RAW_PATH}")
-                    
-                    st.info("Processing Data")
+                        st.success("Using sample data. All files copied.")
 
+                    st.info("Processing Data...")
                     st.session_state['preprocessing_triggered'] = True
                     st.rerun()
+
                 except Exception as e:
                     st.error(f"Error preparing data: {e}")
                     st.session_state['preprocessing_triggered'] = False
 
+    # Load UI data after preprocessing
     if st.session_state.get('preprocessing_triggered'):
         st.session_state['ui_data'] = run_kedro_main_pipeline_and_load_ui_data()
         st.session_state['preprocessing_done'] = True
         st.session_state['preprocessing_triggered'] = False
-        
+
         if st.session_state['ui_data'] is not None:
             st.success("UI loaded!")
 
-    if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None and not st.session_state['ui_data']['rfm_segmented'].empty:
+    # Show other tabs if data is ready
+    if st.session_state.get('preprocessing_done') and st.session_state['ui_data'] is not None \
+            and not st.session_state['ui_data']['rfm_segmented'].empty:
         ui_data = st.session_state['ui_data']
+
         with tab2:
             show_findings_ui(ui_data['kpi_data'], ui_data['segment_summary'], ui_data['segment_counts'], ui_data['top_products_by_segment'], ui_data['df_orders_merged'])
         with tab3:
@@ -1169,18 +1166,10 @@ def run_streamlit_app():
         with tab4:
             show_realization_curve_ui(ui_data['realization_curve'])
         with tab5:
-
-            show_detailed_view_ui(
-                ui_data['rfm_segmented'],
-                ui_data['customers_at_risk'],
-                ui_data['calculated_distribution_threshold']
-            )
+            show_detailed_view_ui(ui_data['rfm_segmented'], ui_data['customers_at_risk'], ui_data['calculated_distribution_threshold'])
             show_churn_tab_ui(ui_data['rfm_segmented'], ui_data['churn_summary'], ui_data['active_days_summary'], ui_data['churn_detailed_view'])
-        
         with tab6:
-            show_customer_migration_tab_ui(
-                ui_data['monthly_rfm'], ui_data['quarterly_rfm'],
-                ui_data['monthly_pair_migrations'], ui_data['quarterly_pair_migrations'])
+            show_customer_migration_tab_ui(ui_data['monthly_rfm'], ui_data['quarterly_rfm'], ui_data['monthly_pair_migrations'], ui_data['quarterly_pair_migrations'])
     else:
         for tab in [tab2, tab3, tab4, tab5, tab6]:
             with tab:

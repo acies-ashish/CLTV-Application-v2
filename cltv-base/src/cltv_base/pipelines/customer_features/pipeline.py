@@ -2,7 +2,8 @@ from kedro.pipeline import Pipeline, node
 from .nodes import (
     calculate_customer_level_features,
     perform_rfm_segmentation,
-    calculate_historical_cltv
+    calculate_historical_cltv,
+    calculate_engagement_score
 )
 
 def create_pipeline(**kwargs) -> Pipeline:
@@ -30,6 +31,12 @@ def create_pipeline(**kwargs) -> Pipeline:
                 outputs="historical_cltv_customers",
                 name="calculate_historical_cltv",
             ),
+            node(
+                func=calculate_engagement_score,
+                inputs="customer_level_merged_data",
+                outputs="customer_level_merged_data_engagement_score", 
+                name="customer_level_data_with_engagement_score"
+            )
         ],
         tags="customer_features"
     )
