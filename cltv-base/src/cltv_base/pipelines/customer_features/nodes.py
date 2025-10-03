@@ -235,5 +235,5 @@ def calculate_engagement_score(ads_df: pd.DataFrame, weights: Optional[dict] = N
     
     # Normalize to 0–100
     df['Engagement_Score'] = (df['Engagement_Score'] / q) * 100
-    
+    df.to_csv('data_with_eng_score.csv')
     return df

@@ -216,3 +216,15 @@ quarterly_pair_migrations:
   type: pickle.PickleDataset
   filepath: data/07_model_output/quarterly_pair_migrations.pkl
   backend: pickle
+
+current_orders_data:
+  type: pandas.CSVDataSet
+  filepath: data/01_raw/current_orders_data.csv
+
+current_transactions_data:
+  type: pandas.CSVDataSet
+  filepath: data/01_raw/current_transactions_data.csv
+
+current_behavioral_data:
+  type: pandas.CSVDataSet
+  filepath: data/01_raw/current_behavioral_data.csv
