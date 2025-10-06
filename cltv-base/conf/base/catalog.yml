@@ -1,16 +1,16 @@
 
 # Raw data - these are the fixed paths where Streamlit will place the input data
-orders_raw:
-  type: pandas.CSVDataset
-  filepath: data/00_external/current_orders_data.csv
+# orders_raw:
+#   type: pandas.CSVDataset
+#   filepath: data/00_external/current_orders_data.csv
 
-transactions_raw:
-  type: pandas.CSVDataset
-  filepath: data/00_external/current_transactions_data.csv
+# transactions_raw:
+#   type: pandas.CSVDataset
+#   filepath: data/00_external/current_transactions_data.csv
 
-behavioral_raw:
-  type: pandas.CSVDataset
-  filepath: data/00_external/current_behavioral_data.csv
+# behavioral_raw:
+#   type: pandas.CSVDataset
+#   filepath: data/00_external/current_behavioral_data.csv
 
 # Intermediate datasets (outputs of your preprocessing nodes)
 orders_standardized:
@@ -218,13 +218,13 @@ quarterly_pair_migrations:
   backend: pickle
 
 current_orders_data:
-  type: pandas.CSVDataSet
+  type: pandas.CSVDataset
   filepath: data/01_raw/current_orders_data.csv
 
 current_transactions_data:
-  type: pandas.CSVDataSet
+  type: pandas.CSVDataset
   filepath: data/01_raw/current_transactions_data.csv
 
 current_behavioral_data:
-  type: pandas.CSVDataSet
+  type: pandas.CSVDataset
   filepath: data/01_raw/current_behavioral_data.csv

@@ -18,19 +18,19 @@ def create_pipeline(**kwargs) -> Pipeline:
         [
             node(
                 func=standardize_columns,
-                inputs=["orders_raw", "params:expected_orders_cols", "params:orders_df_name"],
+                inputs=["current_orders_data", "params:expected_orders_cols", "params:orders_df_name"],
                 outputs="orders_standardized",
                 name="standardize_orders_columns",
             ),
             node(
                 func=standardize_columns,
-                inputs=["transactions_raw", "params:expected_transaction_cols", "params:transactions_df_name"],
+                inputs=["current_transactions_data", "params:expected_transaction_cols", "params:transactions_df_name"],
                 outputs="transactions_standardized",
                 name="standardize_transactions_columns",
             ),
             node(
                 func=standardize_columns,
-                inputs=["behavioral_raw", "params:expected_behavioral_cols", "params:behavioral_df_name"],
+                inputs=["current_behavioral_data", "params:expected_behavioral_cols", "params:behavioral_df_name"],
                 outputs="behavioral_standardized",
                 name="standardize_behavioral_columns",
             ),

@@ -33,9 +33,9 @@ FIXED_BEHAVIORAL_RAW_PATH = DATA_01_RAW / "current_behavioral_data.csv"
 
 # Sample data (keep wherever you store them; here assumed in 00_external)
 # If yours are already in 01_raw with the same names, copying will be a no-op.
-SAMPLE_ORDER_PATH = DATA_01_RAW / "sample_orders.csv"
-SAMPLE_TRANS_PATH = DATA_01_RAW/ "sample_transactions.csv"
-SAMPLE_BEHAVIORAL_PATH = DATA_01_RAW / "sample_behavioral.csv"
+SAMPLE_ORDER_PATH = DATA_00_EXTERNAL / "sample_orders.csv"
+SAMPLE_TRANS_PATH = DATA_00_EXTERNAL/ "sample_transactions.csv"
+SAMPLE_BEHAVIORAL_PATH = DATA_00_EXTERNAL / "sample_behavioral.csv"
 
 bootstrap_project(KEDRO_PROJECT_ROOT)
 
