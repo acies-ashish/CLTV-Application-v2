@@ -169,4 +169,3 @@ venv.bak/
 mlruns/*
 "bh_check.csv" 
 
-data/00_external/
